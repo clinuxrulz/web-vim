@@ -378,7 +378,7 @@ export default function App() {
     >
       <Show when={!isMobile()}>
         <div
-          ref={hiddenInputRef as (el: HTMLDivElement) => void}
+          ref={hiddenInputRef!}
           contenteditable="true"
           style={{
             position: 'absolute',
@@ -391,6 +391,7 @@ export default function App() {
             border: 'none',
             outline: 'none'
           }}
+          // @ts-ignore
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"

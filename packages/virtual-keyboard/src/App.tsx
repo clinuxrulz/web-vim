@@ -4,6 +4,7 @@ export type KeyboardMode = 'alpha' | 'sym1' | 'sym2';
 
 export interface VirtualKeyboardProps {
   onKeyPress?: (key: string, mods: { ctrl: boolean; alt: boolean; shift: boolean }) => void;
+  onCollapse?: () => void;
 }
 
 const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
@@ -279,7 +280,7 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
       }}>
         <For each={extraRows}>
           {(row) => (
-            <div style={{ display: 'flex', gap: '1px', height: '34px', 'box-sizing': 'border-sizing', width: '100%' }}>
+            <div style={{ display: 'flex', gap: '1px', height: '34px', 'box-sizing': 'border-box', width: '100%' }}>
               <For each={row}>
                 {(key) => renderExtraKey(key)}
               </For>
