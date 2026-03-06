@@ -12,6 +12,33 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
   const [isCtrl, setIsCtrl] = createSignal(false);
   const [isAlt, setIsAlt] = createSignal(false);
 
+  let repeatTimeout: any = null;
+  let repeatInterval: any = null;
+
+  const stopRepeat = () => {
+    if (repeatTimeout) {
+      clearTimeout(repeatTimeout);
+      repeatTimeout = null;
+    }
+    if (repeatInterval) {
+      clearInterval(repeatInterval);
+      repeatInterval = null;
+    }
+  };
+
+  const startRepeat = (key: string) => {
+    stopRepeat();
+    // Only repeat certain keys. Explicitly excluding h, j, k, l.
+    const repeatableKeys = ['↑', '↓', '←', '→', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'backspace', 'HOME', 'END', 'PGUP', 'PGDN'];
+    if (!repeatableKeys.includes(key)) return;
+
+    repeatTimeout = setTimeout(() => {
+      repeatInterval = setInterval(() => {
+        handleKeyPress(key, true);
+      }, 50);
+    }, 500);
+  };
+
   const extraRows = [
     ['ESC', '/', '-', 'HOME', '↑', 'END', 'PGUP'],
     ['TAB', 'CTRL', 'ALT', '←', '↓', '→', 'PGDN'],
@@ -81,7 +108,7 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
     </svg>
   );
 
-  const handleKeyPress = (key: string) => {
+  const handleKeyPress = (key: string, isRepeat: boolean = false) => {
     if (key === 'shift') {
       setIsShift(!isShift());
       return;
@@ -108,15 +135,17 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
 
     if (mode() === 'alpha' && shift && key.length === 1) {
       char = char.toUpperCase();
-      setIsShift(false);
+      if (!isRepeat) setIsShift(false);
     }
 
     if (char === 'English (AU)' || char === 'Space') char = ' ';
     
     props.onKeyPress?.(char, { ctrl, alt, shift });
 
-    if (ctrl) setIsCtrl(false);
-    if (alt) setIsAlt(false);
+    if (!isRepeat) {
+      if (ctrl) setIsCtrl(false);
+      if (alt) setIsAlt(false);
+    }
   };
 
   const renderExtraKey = (key: string) => {
@@ -129,7 +158,9 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
 
     return (
       <button 
-        onPointerDown={(e) => { e.preventDefault(); handleKeyPress(key); }}
+        onPointerDown={(e) => { e.preventDefault(); handleKeyPress(key); startRepeat(key); }}
+        onPointerUp={() => stopRepeat()}
+        onPointerLeave={() => stopRepeat()}
         style={{
           background: isActive ? '#444' : '#000',
           color: '#fff',
@@ -211,7 +242,12 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
     }
 
     return (
-      <button style={style} onPointerDown={(e) => { e.preventDefault(); handleKeyPress(key); }}>
+      <button 
+        style={style} 
+        onPointerDown={(e) => { e.preventDefault(); handleKeyPress(key); startRepeat(key); }}
+        onPointerUp={() => stopRepeat()}
+        onPointerLeave={() => stopRepeat()}
+      >
         {content}
       </button>
     );

@@ -3,7 +3,6 @@ import { render } from './solid-universal-tui';
 import { WebGLRenderer } from './WebGLRenderer';
 import { VimEngine, type VimPlugin } from './vim-engine';
 import { VimUI } from './VimUI';
-import { ExtraKeys } from './ExtraKeys';
 import { VirtualKeyboard } from 'virtual-keyboard';
 // @ts-ignore
 import init, { Engine } from '../crates/tui-engine/pkg/tui_engine';
@@ -422,7 +421,7 @@ export default function App() {
 
       <div style={{ width: '100%', 'margin-top': '0px', overflow: 'hidden' }}>
         <Show when={isMobile()}>
-          <Show when={showKeyboard()} fallback={<ExtraKeys onKeyPress={(key) => vimState() && (window as any).processKey?.(key)} />}>
+          <Show when={showKeyboard()}>
             <div style={{ width: '100%', display: 'flex', 'justify-content': 'center' }}>
               <VirtualKeyboard 
                 onKeyPress={(key, mods) => (window as any).processKey?.(key, mods.ctrl)} 
@@ -435,9 +434,6 @@ export default function App() {
               />
             </div>
           </Show>
-        </Show>
-        <Show when={!isMobile()}>
-          <ExtraKeys onKeyPress={(key) => vimState() && (window as any).processKey?.(key)} />
         </Show>
       </div>
     </div>

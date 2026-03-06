@@ -68,30 +68,41 @@ export class VimEngine {
     this.onUpdate();
   }
 
+  private moveCursor(direction: 'left' | 'down' | 'up' | 'right') {
+    switch (direction) {
+      case 'left': this.cursor.x = Math.max(0, this.cursor.x - 1); break;
+      case 'down': this.cursor.y = Math.min(this.buffer.length - 1, this.cursor.y + 1); break;
+      case 'up': this.cursor.y = Math.max(0, this.cursor.y - 1); break;
+      case 'right':
+        const lineLen = this.buffer[this.cursor.y]?.length || 0;
+        this.cursor.x = Math.min(lineLen, this.cursor.x + 1);
+        break;
+    }
+    // Constrain cursor X after movement (especially vertical)
+    const currentLineLen = this.buffer[this.cursor.y]?.length || 0;
+    if (this.cursor.x > currentLineLen) {
+      this.cursor.x = Math.max(0, currentLineLen);
+    }
+  }
+
   private handleNormalMode(key: string, _ctrl: boolean) {
     switch (key) {
       case 'i': this.mode = 'Insert'; break;
       case ':': this.mode = 'Command'; this.commandText = ''; break;
       case "ArrowLeft":
-      case 'h': this.cursor.x = Math.max(0, this.cursor.x - 1); break;
-      case 'j': this.cursor.y = Math.min(this.buffer.length - 1, this.cursor.y + 1); break;
-      case 'k': this.cursor.y = Math.max(0, this.cursor.y - 1); break;
+      case 'h': this.moveCursor('left'); break;
+      case "ArrowDown":
+      case 'j': this.moveCursor('down'); break;
+      case "ArrowUp":
+      case 'k': this.moveCursor('up'); break;
       case "ArrowRight":
-      case 'l': 
-        const lineLen = this.buffer[this.cursor.y]?.length || 0;
-        this.cursor.x = Math.min(lineLen, this.cursor.x + 1); 
-        break;
+      case 'l': this.moveCursor('right'); break;
       case 'x': // delete character under cursor
         const line = this.buffer[this.cursor.y];
         if (line && line.length > 0) {
           this.buffer[this.cursor.y] = line.slice(0, this.cursor.x) + line.slice(this.cursor.x + 1);
         }
         break;
-    }
-    // Constrain cursor X after vertical movement
-    const currentLineLen = this.buffer[this.cursor.y]?.length || 0;
-    if (this.cursor.x > currentLineLen) {
-      this.cursor.x = Math.max(0, currentLineLen);
     }
   }
 
@@ -100,6 +111,11 @@ export class VimEngine {
       this.mode = 'Normal';
       return;
     }
+
+    if (key === 'ArrowLeft') { this.moveCursor('left'); return; }
+    if (key === 'ArrowDown') { this.moveCursor('down'); return; }
+    if (key === 'ArrowUp') { this.moveCursor('up'); return; }
+    if (key === 'ArrowRight') { this.moveCursor('right'); return; }
 
     if (key === 'Backspace') {
       if (this.cursor.x > 0) {
