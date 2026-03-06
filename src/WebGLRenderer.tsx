@@ -8,6 +8,7 @@ interface WebGLRendererProps {
   height: number;
   cursorX: number;
   cursorY: number;
+  crtEnabled?: boolean;
   onMeasure?: (size: { width: number, height: number }) => void;
 }
 
@@ -284,9 +285,19 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
     gl.uniform1f(gl.getUniformLocation(program, 'time'), elapsedTime);
 
     // Set retro effect intensities
-    gl.uniform1f(gl.getUniformLocation(program, 'curveIntensity'), 0.05); // Adjust as needed, e.g., 0.05 to 0.2
-    gl.uniform1f(gl.getUniformLocation(program, 'scanlineIntensity'), 0.3); // Adjust as needed, e.g., 0.1 to 0.5
-    gl.uniform1f(gl.getUniformLocation(program, 'tearIntensity'), 1.0); // Adjust as needed, e.g., 0.5 to 2.0
+    const intensities = props.crtEnabled ? {
+      curve: 0.05,
+      scanline: 0.3,
+      tear: 1.0
+    } : {
+      curve: 0.0,
+      scanline: 0.0,
+      tear: 0.0
+    };
+
+    gl.uniform1f(gl.getUniformLocation(program, 'curveIntensity'), intensities.curve); // Adjust as needed, e.g., 0.05 to 0.2
+    gl.uniform1f(gl.getUniformLocation(program, 'scanlineIntensity'), intensities.scanline); // Adjust as needed, e.g., 0.1 to 0.5
+    gl.uniform1f(gl.getUniformLocation(program, 'tearIntensity'), intensities.tear); // Adjust as needed, e.g., 0.5 to 2.0
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     requestAnimationFrame(renderFrame);

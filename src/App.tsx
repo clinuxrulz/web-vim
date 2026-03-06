@@ -38,6 +38,7 @@ export default function App() {
   const [gridDim, setGridDim] = createSignal({ width: 80, height: 24 });
   const [isMobile, setIsMobile] = createSignal(false);
   const [showKeyboard, setShowKeyboard] = createSignal(false);
+  const [crtEnabled, setCrtEnabled] = createSignal(false);
   
   const [renderData, setRenderData] = createSignal({
     chars: new Uint8Array(80 * 24),
@@ -121,6 +122,12 @@ export default function App() {
       
       // Initialize Plugin
       examplePlugin.init(vim.getAPI());
+      
+      // Register CRT toggle command
+      vim.getAPI().registerCommand('crt', () => {
+        setCrtEnabled(!crtEnabled());
+      });
+
       setVimState(vim.getState());
 
       // Shared key handler
@@ -441,6 +448,7 @@ export default function App() {
           height={gridDim().height}
           cursorX={vimState().cursor.x}
           cursorY={vimState().cursor.y}
+          crtEnabled={crtEnabled()}
           onMeasure={(size) => {
             console.log('Measured font size:', size);
             setCharSize(size);
