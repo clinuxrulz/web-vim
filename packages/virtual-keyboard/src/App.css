@@ -1,0 +1,174 @@
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 100vh;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.extra-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background-color: #000;
+  padding-bottom: 8px; /* Gap between extra keys and Samsung keyboard */
+}
+
+.extra-row {
+  display: flex;
+  gap: 1px;
+  height: 42px;
+}
+
+.extra-key {
+  background-color: #000;
+  color: #fff;
+  border: none;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.extra-key:active {
+  background-color: #333;
+}
+
+.keyboard {
+  background-color: #000;
+  padding: 6px 4px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: none;
+  /* Reduced bottom padding to lower the keyboard's position on screen */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+}
+
+.row {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  width: 100%;
+}
+
+.key {
+  background-color: #2c2c2c;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background-color 0.1s, transform 0.05s;
+  flex: 1 1 0;
+  min-width: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.key:active {
+  background-color: #4a4a4a;
+  transform: scale(0.96);
+}
+
+/* Row 3 (A-L) indent on Samsung */
+.row-3 {
+  padding: 0 5%;
+}
+
+/* Special keys layout on bottom-most row */
+.key-shift, .key-backspace {
+  flex: 1.4;
+  background-color: #3b3b3b;
+}
+
+.key-special {
+  flex: 1.4;
+  font-size: 1.1rem;
+  background-color: #3b3b3b;
+}
+
+.key-space {
+  flex: 5;
+  font-size: 1rem;
+  background-color: #3b3b3b;
+}
+
+.key-enter {
+  flex: 1.4;
+  background-color: #3b3b3b;
+}
+
+.key-comma, .key-dot {
+  flex: 1;
+  background-color: #3b3b3b;
+}
+
+/* Small characters on top of keys (if needed later) */
+.sub-char {
+  position: absolute;
+  font-size: 0.6rem;
+  top: 4px;
+  right: 6px;
+  opacity: 0.6;
+}
+
+svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.key-backspace svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.key-shift.active {
+  background-color: #fff;
+  color: #000;
+}
+
+.key-shift.active svg {
+  stroke: #000;
+  fill: #000;
+}
+
+/* Page 2/2 buttons */
+.key-page {
+  font-size: 0.9rem;
+  background-color: #3b3b3b;
+  flex: 1.4;
+}
