@@ -6,6 +6,7 @@ interface WebGLRendererProps {
   bgs: Uint8Array;
   width: number;
   height: number;
+  onMeasure?: (size: { width: number, height: number }) => void;
 }
 
 export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTMLCanvasElement) => void }) => {
@@ -17,6 +18,28 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
   let fgsTexture: WebGLTexture | null = null;
   let bgsTexture: WebGLTexture | null = null;
   let startTime: number; // Declare startTime here
+
+  const FONT_STYLE = 'bold 24px monospace';
+
+  const measureFont = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    ctx.font = FONT_STYLE;
+    let maxWidth = 0;
+    // Sweep over printable ASCII to find max width
+    for (let i = 32; i < 127; i++) {
+      const metrics = ctx.measureText(String.fromCharCode(i));
+      if (metrics.width > maxWidth) {
+        maxWidth = metrics.width;
+      }
+    }
+    // Add small padding (e.g., 2px total, 1px on each side)
+    const cellWidth = Math.ceil(maxWidth) + 2;
+    const cellHeight = 32; // We'll keep a fixed height for the atlas rows
+    return { cellWidth, cellHeight };
+  };
+
+  const { cellWidth, cellHeight } = measureFont();
 
   const vertexShaderSource = `#version 300 es
     in vec2 position;
@@ -165,29 +188,30 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
 
   const createFontAtlas = (gl: WebGL2RenderingContext) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    const atlasWidth = cellWidth * 16;
+    const atlasHeight = cellHeight * 16;
+    canvas.width = atlasWidth;
+    canvas.height = atlasHeight;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.fillRect(0, 0, atlasWidth, atlasHeight);
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 24px monospace';
+    ctx.font = FONT_STYLE;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    const step = 512 / 16;
     for (let i = 0; i < 256; i++) {
       if (!isPrintableASCII(String.fromCharCode(i))) {
         continue;
       }
-      const x = (i % 16) * step + step / 2;
-      const y = Math.floor(i / 16) * step + step / 2;
+      const x = (i % 16) * cellWidth + cellWidth / 2;
+      const y = Math.floor(i / 16) * cellHeight + cellHeight / 2;
       ctx.fillText(String.fromCharCode(i), x, y);
     }
 
     const tex = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 512, 512, 0, gl.RED, gl.UNSIGNED_BYTE, canvas);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, atlasWidth, atlasHeight, 0, gl.RED, gl.UNSIGNED_BYTE, canvas);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     return tex;
@@ -248,6 +272,9 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
 
   onMount(() => {
     initGL();
+    if (props.onMeasure) {
+      props.onMeasure({ width: cellWidth, height: cellHeight });
+    }
     startTime = performance.now(); // Initialize startTime here
     requestAnimationFrame(renderFrame);
   });

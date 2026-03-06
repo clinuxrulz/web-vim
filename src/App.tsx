@@ -64,6 +64,23 @@ export default function App() {
   let initialPinchDistance = 0;
   let initialCharSize = { width: 10, height: 20 };
 
+  const updateDimensions = () => {
+    if (!containerRef) return;
+    const currentSize = charSize();
+    const width = Math.max(10, Math.floor(containerRef.clientWidth / currentSize.width));
+    const height = Math.max(5, Math.floor(containerRef.clientHeight / currentSize.height));
+    
+    if (width !== gridDim().width || height !== gridDim().height) {
+      setGridDim({ width, height });
+      if (rustEngine) {
+        rustEngine = new Engine(width, height);
+      }
+      if (vimInstance) {
+        setVimState(vimInstance.getState());
+      }
+    }
+  };
+
   onMount(async () => {
     // Detect mobile
     const checkMobile = () => {
@@ -76,26 +93,14 @@ export default function App() {
     try {
       await init();
       
-      const updateDimensions = () => {
-        if (!containerRef) return;
-        const currentSize = charSize();
-        const width = Math.max(10, Math.floor(containerRef.clientWidth / currentSize.width));
-        const height = Math.max(5, Math.floor(containerRef.clientHeight / currentSize.height));
-        
-        if (width !== gridDim().width || height !== gridDim().height) {
-          setGridDim({ width, height });
-          rustEngine = new Engine(width, height);
-          if (vimInstance) {
-            setVimState(vimInstance.getState());
-          }
-        }
-      };
-
       const vim = new VimEngine(() => {
         setVimState(vim.getState());
       });
       vimInstance = vim;
       
+      // Initialize Engine after WASM init
+      rustEngine = new Engine(gridDim().width, gridDim().height);
+
       // Initial sizing
       updateDimensions();
 
@@ -205,9 +210,9 @@ export default function App() {
           const scale = currentDistance / initialPinchDistance;
           
           // Update char size based on scale
-          // Zoom range: width 5px to 50px
+          const aspectRatio = initialCharSize.height / initialCharSize.width;
           const newWidth = Math.max(5, Math.min(50, initialCharSize.width * scale));
-          const newHeight = newWidth * 2; // Maintain 1:2 aspect ratio
+          const newHeight = newWidth * aspectRatio;
           setCharSize({ width: newWidth, height: newHeight });
           updateDimensions();
         }
@@ -434,6 +439,11 @@ export default function App() {
           bgs={renderData().bgs}
           width={gridDim().width}
           height={gridDim().height}
+          onMeasure={(size) => {
+            console.log('Measured font size:', size);
+            setCharSize(size);
+            updateDimensions();
+          }}
         />
       </div>
 
