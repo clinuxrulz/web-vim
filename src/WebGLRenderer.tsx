@@ -6,6 +6,8 @@ interface WebGLRendererProps {
   bgs: Uint8Array;
   width: number;
   height: number;
+  cursorX: number;
+  cursorY: number;
   onMeasure?: (size: { width: number, height: number }) => void;
 }
 
@@ -60,6 +62,7 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
     uniform sampler2D fgsTex;
     uniform sampler2D bgsTex;
     uniform vec2 gridRes;
+    uniform vec2 cursorPos; // New: x, y in grid coordinates
     uniform float time; // New: for animation
     uniform float curveIntensity; // New: for curve
     uniform float scanlineIntensity; // New: for scanlines
@@ -121,6 +124,24 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
       
       // Sample font texture and mix foreground/background colors
       float fontSample = texture(fontTex, fontUv).r;
+
+      // Handle Cursor: blinking underscore effect
+      // Check if this cell matches the cursor position
+      if (floor(cellCoord.x + 0.5) == floor(cursorPos.x + 0.5) && 
+          floor(cellCoord.y + 0.5) == floor(cursorPos.y + 0.5)) {
+          // Blinking effect: toggle every 500ms
+          if (mod(time, 1.0) < 0.5) {
+              // Draw underscore at the bottom of the cell (localCoord.y is 0 at top, 1 at bottom for tuiUv logic?)
+              // Wait, let's re-examine: tuiUv = vec2(uv.x, 1.0 - uv.y);
+              // localCoord = fract(tuiUv * gridRes);
+              // localCoord.y = 0 at the top of the cell, 1 at the bottom.
+              if (localCoord.y > 0.875) {
+                  // Force foreground color for the underscore
+                  fontSample = 1.0;
+              }
+          }
+      }
+
       vec3 finalColor = mix(bg, fg, fontSample);
 
       // Scanline effect: Darken every other scanline
@@ -255,6 +276,7 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
     gl.uniform1i(gl.getUniformLocation(program, 'fgsTex'), 2);
     gl.uniform1i(gl.getUniformLocation(program, 'bgsTex'), 3);
     gl.uniform2f(gl.getUniformLocation(program, 'gridRes'), props.width, props.height);
+    gl.uniform2f(gl.getUniformLocation(program, 'cursorPos'), props.cursorX, props.cursorY);
 
     // Get elapsed time for animations
     const currentTime = performance.now();

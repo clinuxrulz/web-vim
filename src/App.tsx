@@ -439,6 +439,8 @@ export default function App() {
           bgs={renderData().bgs}
           width={gridDim().width}
           height={gridDim().height}
+          cursorX={vimState().cursor.x}
+          cursorY={vimState().cursor.y}
           onMeasure={(size) => {
             console.log('Measured font size:', size);
             setCharSize(size);

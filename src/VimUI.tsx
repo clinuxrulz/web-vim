@@ -40,9 +40,6 @@ export const VimUI: Component<VimUIProps> = (props) => {
           <text x={0} y={0} content={`:${props.commandText}`} />
         </Show>
       </box>
-
-      {/* Primitive Cursor Indicator (just a '+' for now if we can't do highlights) */}
-      <text x={props.cursor.x} y={props.cursor.y} content="_" />
     </box>
   );
 };
