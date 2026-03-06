@@ -8,7 +8,7 @@ interface WebGLRendererProps {
   height: number;
 }
 
-export const WebGLRenderer = (props: WebGLRendererProps) => {
+export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTMLCanvasElement) => void }) => {
   let canvasRef: HTMLCanvasElement | undefined;
   let gl: WebGL2RenderingContext | null = null;
   let program: WebGLProgram | null = null;

@@ -347,8 +347,25 @@ export default function App() {
     }
   });
 
-  const handleContainerClick = (e: MouseEvent) => {
+  const handlePointerDown = (e: PointerEvent) => {
     e.preventDefault();
+    if (!containerRef || !vimInstance) return;
+    
+    const rect = containerRef.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const grid = gridDim();
+    if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+      const col = Math.floor((x / rect.width) * grid.width);
+      const row = Math.floor((y / rect.height) * grid.height);
+      
+      // Only jump if clicking in the buffer area (above status and command lines)
+      if (row < grid.height - 2) {
+        vimInstance.setCursor(col, row);
+      }
+    }
+
     if (isMobile()) {
       if (!showKeyboard()) {
         setShowKeyboard(true);
@@ -374,7 +391,7 @@ export default function App() {
         'align-items': 'center',
         overflow: 'hidden'
       }}
-      onClick={handleContainerClick}
+      onPointerDown={handlePointerDown}
     >
       <Show when={!isMobile()}>
         <div

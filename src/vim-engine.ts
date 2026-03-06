@@ -43,9 +43,16 @@ export class VimEngine {
       getBuffer: () => [...this.buffer],
       setBuffer: (buffer: string[]) => { this.buffer = [...buffer]; this.onUpdate(); },
       getCursor: () => ({ ...this.cursor }),
-      setCursor: (x, y) => { this.cursor = { x, y }; this.onUpdate(); },
+      setCursor: (x, y) => { this.setCursor(x, y); },
       getMode: () => this.mode,
     };
+  }
+
+  public setCursor(x: number, y: number) {
+    this.cursor.y = Math.max(0, Math.min(this.buffer.length - 1, y));
+    const lineLen = this.buffer[this.cursor.y]?.length || 0;
+    this.cursor.x = Math.max(0, Math.min(lineLen, x));
+    this.onUpdate();
   }
 
   public getState() {
