@@ -1,6 +1,6 @@
 import { PluginManager } from './plugin-manager';
 import type { VimMode, VimEvent, VimAPI, GutterOptions } from './types';
-import { getConfigFile, writeConfigFile, listDirectory, isDirectory } from './opfs-util';
+import { getConfigFile, writeConfigFile, listDirectory, isDirectory, PRELUDE_BASE } from './opfs-util';
 
 export class VimEngine {
   private buffer: string[] = ['Welcome to Web-Vim!', 'Press i to insert text', 'Press Esc to return to Normal mode', 'Type :q to quit'];
@@ -10,6 +10,7 @@ export class VimEngine {
   private currentFilePath: string | null = null;
   private isExplorer = false;
   private explorerPath = '';
+  private isReadOnly = false;
   private gutters: GutterOptions[] = [];
   private commands: Record<string, (args: string[]) => void> = {};
   private onUpdate: () => void;
@@ -30,6 +31,10 @@ export class VimEngine {
     this.commands['w'] = async (args) => {
       if (this.isExplorer) {
         console.error('Cannot save a directory buffer');
+        return;
+      }
+      if (this.isReadOnly) {
+        console.error('Cannot save a read-only buffer');
         return;
       }
       const targetPath = args[0] || this.currentFilePath;
@@ -90,14 +95,16 @@ export class VimEngine {
       this.buffer = content.split('\n');
       this.currentFilePath = path;
       this.isExplorer = false;
+      this.isReadOnly = path.startsWith(PRELUDE_BASE);
       this.cursor = { x: 0, y: 0 };
       this.trigger('TextChanged');
       this.onUpdate();
-      console.log(`Opened "${path}"`);
+      console.log(`Opened "${path}"${this.isReadOnly ? ' [ReadOnly]' : ''}`);
     } else {
       this.buffer = [''];
       this.currentFilePath = path;
       this.isExplorer = false;
+      this.isReadOnly = false;
       this.cursor = { x: 0, y: 0 };
       this.onUpdate();
       console.log(`[New File] "${path}"`);
@@ -154,6 +161,7 @@ export class VimEngine {
       currentFilePath: this.currentFilePath,
       isExplorer: this.isExplorer,
       explorerPath: this.explorerPath,
+      isReadOnly: this.isReadOnly,
       plugins: this.pluginManager.getLoadedPlugins(),
       gutters: this.gutters,
     };

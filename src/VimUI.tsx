@@ -12,6 +12,7 @@ interface VimUIProps {
   currentFilePath?: string | null | (() => string | null);
   isExplorer?: boolean | (() => boolean);
   explorerPath?: string | (() => string);
+  isReadOnly?: boolean | (() => boolean);
   plugins?: Array<{ name: string }> | (() => Array<{ name: string }>);
   gutters?: GutterOptions[] | (() => GutterOptions[]);
   onCursorChange?: (cursor: { x: number; y: number }) => void;
@@ -29,6 +30,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const currentFilePath = () => getProp(props.currentFilePath);
   const isExplorer = () => getProp(props.isExplorer);
   const explorerPath = () => getProp(props.explorerPath);
+  const isReadOnly = () => getProp(props.isReadOnly);
   const gutters = () => getProp(props.gutters) || [];
 
   const statusLineY = () => height() - 2;
@@ -46,7 +48,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
 
   const fileName = () => {
     if (isExplorer()) return `Explorer: ${explorerPath() || '/'}`;
-    return currentFilePath() || '[No Name]';
+    return (currentFilePath() || '[No Name]') + (isReadOnly() ? ' [RO]' : '');
   };
 
   return h('box', { x: 0, y: 0, width: width, height: height, border: false }, [

@@ -16,11 +16,14 @@ export default {
     name: "user-init",
     description: "User startup configuration"
   },
-  setup: (api) => {
+  setup: async (api) => {
     api.log("Custom init.ts loaded from OPFS!");
     
-    // You can load other plugins here too:
-    // api.loadPluginFromSource("my-plugin", "...ts source...");
+    // Load built-in plugins from the virtual prelude if desired:
+    const lineNumbers = await api.fs.readFile(".config/web-vim/prelude/line-numbers.tsx");
+    if (lineNumbers) {
+      await api.loadPluginFromSource("line-numbers", lineNumbers);
+    }
   }
 };
 `;
@@ -89,6 +92,7 @@ export default function App() {
     currentFilePath: null as string | null,
     isExplorer: false,
     explorerPath: '',
+    isReadOnly: false,
     plugins: [] as any[],
     gutters: [] as any[],
   });
@@ -196,18 +200,11 @@ export default {
         if (initSource) {
            await vim.loadPluginFromSource("init.ts", initSource);
         } else {
-           // Provide a way for the user to create it
            console.log("No init.ts found at", CONFIG_PATH);
-           // Optional: create a dummy one for easy editing?
-           // await writeConfigFile(CONFIG_PATH, DEFAULT_INIT);
         }
       } catch (e) {
         console.error("Error loading init.ts from OPFS:", e);
       }
-      
-      // 2. Sample (Optional)
-      vim.loadPluginFromSource("hello-plugin", helloPlugin);
-      vim.loadPluginFromSource("line-numbers", lineNumbersPlugin);
       
       // Register CRT toggle command
       vim.getAPI().registerCommand('crt', () => {
@@ -349,6 +346,7 @@ export default {
           currentFilePath={() => vimState().currentFilePath}
           isExplorer={() => vimState().isExplorer}
           explorerPath={() => vimState().explorerPath}
+          isReadOnly={() => vimState().isReadOnly}
           plugins={() => vimState().plugins}
           gutters={() => vimState().gutters}
           width={() => gridDim().width}

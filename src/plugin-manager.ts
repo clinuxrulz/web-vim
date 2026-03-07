@@ -29,7 +29,7 @@ export interface PluginMetadata {
 
 export interface WebVimPlugin {
   metadata: PluginMetadata;
-  setup: (api: ScopedVimAPI) => void;
+  setup: (api: ScopedVimAPI) => void | Promise<void>;
 }
 
 declare const Babel: any;
@@ -86,7 +86,7 @@ export class PluginManager {
       }
 
       console.log(`[PluginManager] Registering ${name}...`);
-      this.registerPlugin(name, plugin);
+      await this.registerPlugin(name, plugin);
       return true;
     } catch (err) {
       console.error(`[PluginManager] Failed to load plugin ${name}:`, err);
@@ -94,7 +94,7 @@ export class PluginManager {
     }
   }
 
-  private registerPlugin(id: string, plugin: WebVimPlugin) {
+  private async registerPlugin(id: string, plugin: WebVimPlugin) {
     const name = plugin.metadata?.name || id;
     console.log(`[PluginManager] Registering plugin: ${name}`);
     this.plugins.set(id, plugin);
@@ -106,7 +106,7 @@ export class PluginManager {
     // Initialize the plugin
     try {
       console.log(`[PluginManager] Calling setup for plugin: ${name}`);
-      plugin.setup(scopedApi);
+      await plugin.setup(scopedApi);
       console.log(`[PluginManager] Plugin "${name}" initialized successfully.`);
     } catch (err) {
       console.error(`[PluginManager] Error during plugin "${name}" setup:`, err);
