@@ -1,4 +1,4 @@
-import { onMount, createEffect } from 'solid-js';
+import { onMount, createEffect, onCleanup } from 'solid-js';
 
 interface WebGLRendererProps {
   chars: Uint8Array;
@@ -21,6 +21,7 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
   let fgsTexture: WebGLTexture | null = null;
   let bgsTexture: WebGLTexture | null = null;
   let startTime: number; // Declare startTime here
+  let animationFrameId: number | null = null;
 
   const FONT_STYLE = 'bold 24px monospace';
 
@@ -254,53 +255,65 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
   };
 
   const renderFrame = () => {
+    animationFrameId = null;
     if (!gl || !program || !canvasRef) return;
     
-    // Resize canvas to match display size
-    const displayWidth = canvasRef.clientWidth;
-    const displayHeight = canvasRef.clientHeight;
-    if (canvasRef.width !== displayWidth || canvasRef.height !== displayHeight) {
-      canvasRef.width = displayWidth;
-      canvasRef.height = displayHeight;
+    try {
+      // Resize canvas to match display size
+      const displayWidth = canvasRef.clientWidth;
+      const displayHeight = canvasRef.clientHeight;
+      if (canvasRef.width !== displayWidth || canvasRef.height !== displayHeight) {
+        canvasRef.width = displayWidth;
+        canvasRef.height = displayHeight;
+      }
+
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+      gl.useProgram(program);
+      
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fontTexture);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, charsTexture);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, fgsTexture);
+      gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, bgsTexture);
+
+      gl.uniform1i(gl.getUniformLocation(program, 'fontTex'), 0);
+      gl.uniform1i(gl.getUniformLocation(program, 'charsTex'), 1);
+      gl.uniform1i(gl.getUniformLocation(program, 'fgsTex'), 2);
+      gl.uniform1i(gl.getUniformLocation(program, 'bgsTex'), 3);
+      gl.uniform2f(gl.getUniformLocation(program, 'gridRes'), props.width, props.height);
+      gl.uniform2f(gl.getUniformLocation(program, 'cursorPos'), props.cursorX, props.cursorY);
+
+      // Get elapsed time for animations
+      const currentTime = performance.now();
+      const elapsedTime = (currentTime - startTime) / 1000.0; // convert to seconds
+      gl.uniform1f(gl.getUniformLocation(program, 'time'), elapsedTime);
+
+      // Set retro effect intensities
+      const intensities = props.crtEnabled ? {
+        curve: 0.05,
+        scanline: 0.3,
+        tear: 1.0
+      } : {
+        curve: 0.0,
+        scanline: 0.0,
+        tear: 0.0
+      };
+
+      gl.uniform1f(gl.getUniformLocation(program, 'curveIntensity'), intensities.curve); // Adjust as needed, e.g., 0.05 to 0.2
+      gl.uniform1f(gl.getUniformLocation(program, 'scanlineIntensity'), intensities.scanline); // Adjust as needed, e.g., 0.1 to 0.5
+      gl.uniform1f(gl.getUniformLocation(program, 'tearIntensity'), intensities.tear); // Adjust as needed, e.g., 0.5 to 2.0
+
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    } finally {
+      if (props.crtEnabled) {
+        animationFrameId = requestAnimationFrame(renderFrame);
+      }
     }
+  };
 
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.useProgram(program);
-    
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, fontTexture);
-    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, charsTexture);
-    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, fgsTexture);
-    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, bgsTexture);
-
-    gl.uniform1i(gl.getUniformLocation(program, 'fontTex'), 0);
-    gl.uniform1i(gl.getUniformLocation(program, 'charsTex'), 1);
-    gl.uniform1i(gl.getUniformLocation(program, 'fgsTex'), 2);
-    gl.uniform1i(gl.getUniformLocation(program, 'bgsTex'), 3);
-    gl.uniform2f(gl.getUniformLocation(program, 'gridRes'), props.width, props.height);
-    gl.uniform2f(gl.getUniformLocation(program, 'cursorPos'), props.cursorX, props.cursorY);
-
-    // Get elapsed time for animations
-    const currentTime = performance.now();
-    const elapsedTime = (currentTime - startTime) / 1000.0; // convert to seconds
-    gl.uniform1f(gl.getUniformLocation(program, 'time'), elapsedTime);
-
-    // Set retro effect intensities
-    const intensities = props.crtEnabled ? {
-      curve: 0.05,
-      scanline: 0.3,
-      tear: 1.0
-    } : {
-      curve: 0.0,
-      scanline: 0.0,
-      tear: 0.0
-    };
-
-    gl.uniform1f(gl.getUniformLocation(program, 'curveIntensity'), intensities.curve); // Adjust as needed, e.g., 0.05 to 0.2
-    gl.uniform1f(gl.getUniformLocation(program, 'scanlineIntensity'), intensities.scanline); // Adjust as needed, e.g., 0.1 to 0.5
-    gl.uniform1f(gl.getUniformLocation(program, 'tearIntensity'), intensities.tear); // Adjust as needed, e.g., 0.5 to 2.0
-
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    requestAnimationFrame(renderFrame);
+  const requestRender = () => {
+    if (animationFrameId === null) {
+      animationFrameId = requestAnimationFrame(renderFrame);
+    }
   };
 
   onMount(() => {
@@ -309,11 +322,42 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
       props.onMeasure({ width: cellWidth, height: cellHeight });
     }
     startTime = performance.now(); // Initialize startTime here
-    requestAnimationFrame(renderFrame);
+    requestRender();
+    
+    window.addEventListener('resize', requestRender);
+    onCleanup(() => {
+      window.removeEventListener('resize', requestRender);
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    });
   });
 
   createEffect(() => {
+    // React to all rendering-relevant props
+    const _ = {
+      chars: props.chars,
+      fgs: props.fgs,
+      bgs: props.bgs,
+      width: props.width,
+      height: props.height,
+      cursorX: props.cursorX,
+      cursorY: props.cursorY,
+      crtEnabled: props.crtEnabled
+    };
+    
     updateTextures();
+    requestRender();
+  });
+
+  // Blink timer for non-CRT mode
+  createEffect(() => {
+    if (!props.crtEnabled) {
+      const interval = setInterval(() => {
+        requestRender();
+      }, 500);
+      onCleanup(() => clearInterval(interval));
+    }
   });
 
   return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', border: 'none' }} />;

@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from 'solid-js';
+import { createSignal, onMount, Show, createEffect } from 'solid-js';
 import { render } from './solid-universal-tui';
 import { WebGLRenderer } from './WebGLRenderer';
 import { VimEngine, type VimPlugin } from './vim-engine';
@@ -258,85 +258,93 @@ export default function App() {
         />
       ), stableRoot);
 
-      const tick = () => {
-        // Sync dimensions to root
-        stableRoot.props.width = gridDim().width;
-        stableRoot.props.height = gridDim().height;
+      const runTick = () => {
+        try {
+          // Sync dimensions to root
+          stableRoot.props.width = gridDim().width;
+          stableRoot.props.height = gridDim().height;
 
-        const cleanTree = (node: any): any[] => {
-          if (!node) return [];
+          const cleanTree = (node: any): any[] => {
+            if (!node) return [];
 
-          let type = '';
-          let props: any = {};
-          let rawChildren: any[] = [];
+            let type = '';
+            let props: any = {};
+            let rawChildren: any[] = [];
 
-          if (node instanceof Element) {
-            const tag = node.localName;
-            type = tag === 'box' ? 'Box' : (tag === 'text' ? 'Text' : tag.charAt(0).toUpperCase() + tag.slice(1));
-            for (let i = 0; i < node.attributes.length; i++) {
-              const attr = node.attributes[i];
-              let value: any = attr.value;
-              let type = PROP_TO_TYPE_MAP.get(attr.name);
-              if (type != undefined) {
-                let parser = TYPE_PARSER_MAP.get(type);
-                if (parser != undefined) {
-                  value = parser(value);
+            if (node instanceof Element) {
+              const tag = node.localName;
+              type = tag === 'box' ? 'Box' : (tag === 'text' ? 'Text' : tag.charAt(0).toUpperCase() + tag.slice(1));
+              for (let i = 0; i < node.attributes.length; i++) {
+                const attr = node.attributes[i];
+                let value: any = attr.value;
+                let type = PROP_TO_TYPE_MAP.get(attr.name);
+                if (type != undefined) {
+                  let parser = TYPE_PARSER_MAP.get(type);
+                  if (parser != undefined) {
+                    value = parser(value);
+                  }
                 }
+                props[attr.name] = value;
               }
-              props[attr.name] = value;
+              rawChildren = Array.from(node.childNodes);
             }
-            rawChildren = Array.from(node.childNodes);
-          }
-          else if (node instanceof Text) {
-            type = 'Text';
-            props = { content: node.textContent || '' };
-          }
-          else if (node.type && !node.nodeType) {
-            type = node.type;
-            props = { ...node.props };
-            rawChildren = Array.isArray(node.children) ? node.children : [];
-          }
-          else if (typeof node === 'function') {
-            try { return cleanTree(node()); } catch { return []; }
-          }
-          else {
-            return [];
-          }
+            else if (node instanceof Text) {
+              type = 'Text';
+              props = { content: node.textContent || '' };
+            }
+            else if (node.type && !node.nodeType) {
+              type = node.type;
+              props = { ...node.props };
+              rawChildren = Array.isArray(node.children) ? node.children : [];
+            }
+            else if (typeof node === 'function') {
+              try { return cleanTree(node()); } catch { return []; }
+            }
+            else {
+              return [];
+            }
 
-          ['x', 'y', 'width', 'height'].forEach(p => {
-            const val = props[p];
-            const num = Number(val);
-            props[p] = isNaN(num) ? 0 : Math.max(0, Math.floor(num));
-          });
-
-          props.border = props.border === true || props.border === 'true';
-          props.content = String(props.content ?? '');
-          props.title = String(props.title ?? '');
-
-          return [{
-            type,
-            props,
-            children: rawChildren.flatMap(cleanTree)
-          }];
-        };
-
-        const sanitized = cleanTree(stableRoot);
-        const sanitizedRoot = sanitized.length > 0 ? sanitized[0] : null;
-
-        if (sanitizedRoot && rustEngine) {
-          const output = rustEngine.render(sanitizedRoot);
-          if (output) {
-            setRenderData({
-              chars: new Uint8Array(output.chars),
-              fgs: new Uint8Array(output.fgs),
-              bgs: new Uint8Array(output.bgs),
+            ['x', 'y', 'width', 'height'].forEach(p => {
+              const val = props[p];
+              const num = Number(val);
+              props[p] = isNaN(num) ? 0 : Math.max(0, Math.floor(num));
             });
+
+            props.border = props.border === true || props.border === 'true';
+            props.content = String(props.content ?? '');
+            props.title = String(props.title ?? '');
+
+            return [{
+              type,
+              props,
+              children: rawChildren.flatMap(cleanTree)
+            }];
+          };
+
+          const sanitized = cleanTree(stableRoot);
+          const sanitizedRoot = sanitized.length > 0 ? sanitized[0] : null;
+
+          if (sanitizedRoot && rustEngine) {
+            const output = rustEngine.render(sanitizedRoot);
+            if (output) {
+              setRenderData({
+                chars: new Uint8Array(output.chars),
+                fgs: new Uint8Array(output.fgs),
+                bgs: new Uint8Array(output.bgs),
+              });
+            }
           }
+        } catch (e) {
+          console.error("Error in TUI tick:", e);
         }
-        requestAnimationFrame(tick);
       };
 
-      tick();
+      // Watch for changes and request a tick
+      createEffect(() => {
+        vimState();
+        gridDim();
+        runTick();
+      });
 
       return () => {
         window.removeEventListener('keydown', handleKeyDown);
