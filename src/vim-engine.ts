@@ -1,5 +1,5 @@
 import { PluginManager } from './plugin-manager';
-import type { VimMode, VimEvent, VimAPI } from './types';
+import type { VimMode, VimEvent, VimAPI, GutterOptions } from './types';
 import { getConfigFile, writeConfigFile, listDirectory, isDirectory } from './opfs-util';
 
 export class VimEngine {
@@ -10,6 +10,7 @@ export class VimEngine {
   private currentFilePath: string | null = null;
   private isExplorer = false;
   private explorerPath = '';
+  private gutters: GutterOptions[] = [];
   private commands: Record<string, (args: string[]) => void> = {};
   private onUpdate: () => void;
   private eventListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
@@ -119,6 +120,12 @@ export class VimEngine {
       },
       executeCommand: (cmd) => this.executeCommand(cmd),
       loadPluginFromSource: (name, source) => this.loadPluginFromSource(name, source),
+      registerGutter: (options: GutterOptions) => {
+        console.log(`[VimEngine] Registering gutter: ${options.name}`, options);
+        this.gutters.push(options);
+        this.gutters.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+        this.onUpdate();
+      }
     };
   }
 
@@ -148,6 +155,7 @@ export class VimEngine {
       isExplorer: this.isExplorer,
       explorerPath: this.explorerPath,
       plugins: this.pluginManager.getLoadedPlugins(),
+      gutters: this.gutters,
     };
   }
 

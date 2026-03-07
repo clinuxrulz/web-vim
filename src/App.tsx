@@ -73,6 +73,8 @@ export default function App() {
   const [showKeyboard, setShowKeyboard] = createSignal(false);
   const [crtEnabled, setCrtEnabled] = createSignal(false);
   
+  const [visualCursor, setVisualCursor] = createSignal({ x: 0, y: 0 });
+
   const [renderData, setRenderData] = createSignal({
     chars: new Uint8Array(80 * 24),
     fgs: new Uint8Array(80 * 24 * 3),
@@ -88,6 +90,7 @@ export default function App() {
     isExplorer: false,
     explorerPath: '',
     plugins: [] as any[],
+    gutters: [] as any[],
   });
 
   const [viewportHeight, setViewportHeight] = createSignal(window.innerHeight);
@@ -101,6 +104,34 @@ export default function App() {
   // Variables for pinch-to-zoom logic
   let initialPinchDistance = 0;
   let initialCharSize = { width: 10, height: 20 };
+
+  const lineNumbersPlugin = `
+export default {
+  metadata: {
+    name: "line-numbers",
+    description: "Provides line numbers in the gutter"
+  },
+  setup: (api) => {
+    api.log("Setting up line-numbers plugin...");
+    api.registerGutter({
+      name: "line-numbers",
+      width: 4,
+      priority: 100,
+      render: ({ lineIndex, isCursorLine }) => {
+        const getVal = (val) => (typeof val === "function" ? val() : val);
+        const num = () => (getVal(lineIndex) + 1).toString().padStart(3, " ");
+        return (
+          <text 
+            content={() => num() + " "} 
+            color={() => getVal(isCursorLine) ? "#ffffff" : "#888888"} 
+          />
+        );
+      }
+    });
+    api.log("Line-numbers gutter registered");
+  }
+};
+`;
 
   const updateDimensions = () => {
     if (!containerRef) return;
@@ -175,7 +206,8 @@ export default function App() {
       }
       
       // 2. Sample (Optional)
-      // vim.loadPluginFromSource("hello-plugin", helloPlugin);
+      vim.loadPluginFromSource("hello-plugin", helloPlugin);
+      vim.loadPluginFromSource("line-numbers", lineNumbersPlugin);
       
       // Register CRT toggle command
       vim.getAPI().registerCommand('crt', () => {
@@ -310,16 +342,18 @@ export default function App() {
       // @ts-ignore
       render(() => (
         <VimUI 
-          buffer={vimState().buffer} 
-          cursor={vimState().cursor} 
-          mode={vimState().mode} 
-          commandText={vimState().commandText}
-          currentFilePath={vimState().currentFilePath}
-          isExplorer={vimState().isExplorer}
-          explorerPath={vimState().explorerPath}
-          plugins={vimState().plugins}
-          width={gridDim().width}
-          height={gridDim().height}
+          buffer={() => vimState().buffer} 
+          cursor={() => vimState().cursor} 
+          mode={() => vimState().mode} 
+          commandText={() => vimState().commandText}
+          currentFilePath={() => vimState().currentFilePath}
+          isExplorer={() => vimState().isExplorer}
+          explorerPath={() => vimState().explorerPath}
+          plugins={() => vimState().plugins}
+          gutters={() => vimState().gutters}
+          width={() => gridDim().width}
+          height={() => gridDim().height}
+          onCursorChange={(c) => setVisualCursor(c)}
         />
       ), stableRoot);
 
@@ -370,14 +404,16 @@ export default function App() {
             }
 
             ['x', 'y', 'width', 'height'].forEach(p => {
-              const val = props[p];
-              const num = Number(val);
-              props[p] = isNaN(num) ? 0 : Math.max(0, Math.floor(num));
+              if (props[p] !== undefined) {
+                const num = Number(props[p]);
+                props[p] = isNaN(num) ? 0 : Math.max(0, Math.floor(num));
+              }
             });
 
             props.border = props.border === true || props.border === 'true';
-            props.content = String(props.content ?? '');
-            props.title = String(props.title ?? '');
+            if (props.content !== undefined) props.content = String(props.content ?? '');
+            if (props.title !== undefined) props.title = String(props.title ?? '');
+            if (props.color !== undefined) props.color = String(props.color);
 
             return [{
               type,
@@ -519,8 +555,8 @@ export default function App() {
           bgs={renderData().bgs}
           width={gridDim().width}
           height={gridDim().height}
-          cursorX={vimState().cursor.x}
-          cursorY={vimState().cursor.y}
+          cursorX={visualCursor().x}
+          cursorY={visualCursor().y}
           crtEnabled={crtEnabled()}
           onMeasure={(size) => {
             console.log('Measured font size:', size);

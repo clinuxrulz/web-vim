@@ -1,4 +1,6 @@
-import type { VimAPI, VimMode } from './types';
+import type { VimAPI, VimMode, GutterOptions } from './types';
+import { h, Fragment } from './solid-universal-tui';
+import { getConfigFile, writeConfigFile } from './opfs-util';
 
 // Define the plugin-specific API that each plugin will receive
 export interface ScopedVimAPI extends VimAPI {
@@ -14,6 +16,8 @@ export interface ScopedVimAPI extends VimAPI {
     readFile: (path: string) => Promise<string | null>;
     writeFile: (path: string, content: string) => Promise<void>;
   };
+  // UI helpers
+  h: typeof h;
 }
 
 export interface PluginMetadata {
@@ -28,10 +32,7 @@ export interface WebVimPlugin {
   setup: (api: ScopedVimAPI) => void;
 }
 
-// Global Babel access for TS to JS on the fly
 declare const Babel: any;
-
-import { getConfigFile, writeConfigFile } from './opfs-util';
 
 export class PluginManager {
   private plugins: Map<string, WebVimPlugin> = new Map();
@@ -46,41 +47,45 @@ export class PluginManager {
    * Loads a TypeScript plugin from a raw string
    */
   async loadPluginFromSource(name: string, tsSource: string) {
-    console.log(`[PluginManager] Loading plugin: ${name}`);
+    console.log(`[PluginManager] Starting to load plugin: ${name}`);
 
     try {
+      console.log(`[PluginManager] Transpiling ${name}...`);
       // Transpile TypeScript to JavaScript using Babel Standalone
-      // We add 'transform-modules-commonjs' to handle 'export' statements
       const result = Babel.transform(tsSource, {
-        filename: `${name}.ts`,
-        presets: ['typescript'],
+        filename: `${name}.tsx`,
+        presets: [
+          ['typescript', { isTSX: true, allExtensions: true }]
+        ],
         plugins: [
-          ['transform-modules-commonjs', { loose: true }]
+          ['transform-modules-commonjs', { loose: true }],
+          ['transform-react-jsx', { pragma: 'h', pragmaFrag: 'Fragment' }]
         ],
         retainLines: true,
       });
 
       const jsCode = result.code;
+      console.log(`[PluginManager] Transpiled ${name} successfully. Running code...`);
 
       // Wrap the code in a function to isolate it and provide our API
-      // We expect the plugin to be a CommonJS-like module or an ESM-like module
-      // For simplicity, we'll expect it to assign to 'module.exports' or 'exports'
       const module = { exports: {} as any };
       const exports = module.exports;
 
-      const runPlugin = new Function('module', 'exports', 'require', jsCode);
+      const runPlugin = new Function('module', 'exports', 'require', 'h', 'Fragment', jsCode);
       
       // Execute the plugin code
       runPlugin(module, exports, (mod: string) => {
           throw new Error(`Require is not supported in plugins: ${mod}`);
-      });
+      }, h, Fragment);
 
+      console.log(`[PluginManager] Ran ${name} successfully. Extracting plugin...`);
       const plugin: WebVimPlugin = module.exports.default || module.exports;
 
       if (!plugin || typeof plugin.setup !== 'function') {
         throw new Error(`Plugin ${name} does not export a valid 'setup' function.`);
       }
 
+      console.log(`[PluginManager] Registering ${name}...`);
       this.registerPlugin(name, plugin);
       return true;
     } catch (err) {
@@ -91,6 +96,7 @@ export class PluginManager {
 
   private registerPlugin(id: string, plugin: WebVimPlugin) {
     const name = plugin.metadata?.name || id;
+    console.log(`[PluginManager] Registering plugin: ${name}`);
     this.plugins.set(id, plugin);
     this.pluginStates.set(id, new Map());
 
@@ -99,6 +105,7 @@ export class PluginManager {
 
     // Initialize the plugin
     try {
+      console.log(`[PluginManager] Calling setup for plugin: ${name}`);
       plugin.setup(scopedApi);
       console.log(`[PluginManager] Plugin "${name}" initialized successfully.`);
     } catch (err) {
@@ -110,8 +117,6 @@ export class PluginManager {
     const baseApi = this.getBaseAPI();
     const pluginState = this.pluginStates.get(pluginId)!;
 
-    // Use a Proxy or Object.create to ensure the plugin can't pollute the base API
-    // but can still use it.
     return {
       ...baseApi,
       
@@ -130,7 +135,9 @@ export class PluginManager {
       fs: {
         readFile: (path: string) => getConfigFile(path),
         writeFile: (path: string, content: string) => writeConfigFile(path, content),
-      }
+      },
+
+      h: h,
     };
   }
 

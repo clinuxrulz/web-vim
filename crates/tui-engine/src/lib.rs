@@ -50,6 +50,7 @@ pub struct TextProps {
     pub x: u16,
     #[serde(default)]
     pub y: u16,
+    pub color: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -168,12 +169,40 @@ impl Engine {
                     ).intersection(Rect::new(0, 0, self.width, self.height));
                     
                     if rect.width > 0 {
+                        let mut style = Style::default().fg(Color::White);
+                        if let Some(color_str) = &props.color {
+                            if let Some(color) = parse_color(color_str) {
+                                style = style.fg(color);
+                            }
+                        }
                         let paragraph = Paragraph::new(props.content.as_str())
-                            .style(Style::default().fg(Color::White));
+                            .style(style);
                         paragraph.render(rect, &mut self.buffer);
                     }
                 }
             }
+        }
+    }
+}
+
+fn parse_color(s: &str) -> Option<Color> {
+    if s.starts_with('#') && s.len() == 7 {
+        let r = u8::from_str_radix(&s[1..3], 16).ok()?;
+        let g = u8::from_str_radix(&s[3..5], 16).ok()?;
+        let b = u8::from_str_radix(&s[5..7], 16).ok()?;
+        Some(Color::Rgb(r, g, b))
+    } else {
+        match s.to_lowercase().as_str() {
+            "white" => Some(Color::White),
+            "black" => Some(Color::Black),
+            "red" => Some(Color::Red),
+            "green" => Some(Color::Green),
+            "yellow" => Some(Color::Yellow),
+            "blue" => Some(Color::Blue),
+            "magenta" => Some(Color::Magenta),
+            "cyan" => Some(Color::Cyan),
+            "gray" => Some(Color::Gray),
+            _ => None,
         }
     }
 }
