@@ -17,6 +17,11 @@ interface VimUIProps {
   isReadOnly?: boolean | (() => boolean);
   plugins?: Array<{ name: string }> | (() => Array<{ name: string }>);
   gutters?: GutterOptions[] | (() => GutterOptions[]);
+  lineRenderers?: LineRendererOptions[] | (() => LineRendererOptions[]);
+  completionItems?: any[] | (() => any[]);
+  selectedCompletionIndex?: number | (() => number);
+  hoverText?: string | null | (() => string | null);
+  hoverPos?: { x: number; y: number } | (() => { x: number; y: number });
   onCursorChange?: (cursor: { x: number; y: number }) => void;
 }
 
@@ -36,6 +41,11 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const explorerPath = () => getProp(props.explorerPath);
   const isReadOnly = () => getProp(props.isReadOnly);
   const gutters = () => getProp(props.gutters) || [];
+  const lineRenderers = () => getProp(props.lineRenderers) || [];
+  const completionItems = () => getProp(props.completionItems) || [];
+  const selectedCompletionIndex = () => getProp(props.selectedCompletionIndex) || 0;
+  const hoverText = () => getProp(props.hoverText);
+  const hoverPos = () => getProp(props.hoverPos) || { x: 0, y: 0 };
 
   const statusLineY = () => height() - 2;
   const commandLineY = () => height() - 1;
@@ -44,11 +54,14 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const totalGutterWidth = () => gutters().reduce((acc, g) => acc + g.width, 0);
   const viewportWidth = () => width() - totalGutterWidth();
 
+  const visualCursorX = () => cursor().x - leftCol() + totalGutterWidth();
+  const visualCursorY = () => cursor().y - topLine();
+
+  const lineRenderer = () => lineRenderers()[0];
+
   createEffect(() => {
     if (props.onCursorChange) {
-      const visualX = cursor().x - leftCol() + totalGutterWidth();
-      const visualY = cursor().y - topLine();
-      props.onCursorChange({ x: visualX, y: visualY });
+      props.onCursorChange({ x: visualCursorX(), y: visualCursorY() });
     }
   });
 
@@ -74,7 +87,19 @@ export const VimUI: Component<VimUIProps> = (props) => {
             })
           ]);
         }),
-        h('text', { x: totalGutterWidth, y: 0, content: () => line.slice(leftCol(), leftCol() + viewportWidth()) })
+        h(Show, { 
+          when: lineRenderer, 
+          fallback: h('text', { x: totalGutterWidth, y: 0, content: () => line.slice(leftCol(), leftCol() + viewportWidth()) })
+        }, [
+          h('box', { x: totalGutterWidth, y: 0, width: viewportWidth, height: 1 }, [
+            () => lineRenderer()?.render({
+              lineIndex: absoluteLineIndex,
+              lineContent: line,
+              isCursorLine: () => cursor().y === absoluteLineIndex(),
+              gutterWidth: totalGutterWidth
+            })
+          ])
+        ])
       ]);
     }),
 
@@ -87,6 +112,41 @@ export const VimUI: Component<VimUIProps> = (props) => {
     h('box', { x: 0, y: commandLineY, width: width, height: 1, border: false }, [
       h(Show, { when: () => mode() === 'Command' }, [
         h('text', { x: 0, y: 0, content: () => `:${commandText()}` })
+      ])
+    ]),
+
+    /* Completion Popup */
+    h(Show, { when: () => completionItems().length > 0 }, [
+      h('box', { 
+        x: () => Math.min(visualCursorX(), width() - 30), 
+        y: () => visualCursorY() + 1, 
+        width: 30, 
+        height: () => Math.min(10, completionItems().length),
+        border: true,
+        title: 'Completions'
+      }, [
+        h(For, { each: () => completionItems().slice(0, 10) }, (item: any, i: () => number) => {
+          const isSelected = () => i() === selectedCompletionIndex();
+          return h('text', { 
+            x: 0, 
+            y: i, 
+            content: () => (isSelected() ? '> ' : '  ') + item.label.slice(0, 26),
+            color: () => isSelected() ? '#007acc' : '#ffffff'
+          });
+        })
+      ])
+    ]),
+
+    /* Hover Info */
+    h(Show, { when: () => hoverText() }, [
+      h('box', {
+        x: () => Math.min(hoverPos().x, width() - 40),
+        y: () => Math.max(0, hoverPos().y - 3),
+        width: 40,
+        height: 3,
+        border: true
+      }, [
+        h('text', { x: 0, y: 0, content: () => hoverText() || '' })
       ])
     ])
   ]);
