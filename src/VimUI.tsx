@@ -71,6 +71,36 @@ export const VimUI: Component<VimUIProps> = (props) => {
 
   const visibleLines = () => buffer().slice(topLine(), topLine() + viewportHeight());
 
+  const MAX_COMPLETIONS = 6;
+  const completionStartIndex = () => {
+    const items = completionItems();
+    const selected = selectedCompletionIndex();
+    if (items.length <= MAX_COMPLETIONS) return 0;
+    
+    // Keep selection visible
+    if (selected < MAX_COMPLETIONS / 2) return 0;
+    if (selected > items.length - MAX_COMPLETIONS / 2) return items.length - MAX_COMPLETIONS;
+    return Math.floor(selected - MAX_COMPLETIONS / 2);
+  };
+
+  const visibleCompletions = () => {
+    const start = completionStartIndex();
+    return completionItems().slice(start, start + MAX_COMPLETIONS);
+  };
+
+  const popupHeight = () => visibleCompletions().length + 2;
+  const popupY = () => {
+    const yBelow = visualCursorY() + 1;
+    const h = popupHeight();
+    // If it doesn't fit below, try above
+    if (yBelow + h > height()) {
+      const yAbove = visualCursorY() - h;
+      return Math.max(0, yAbove);
+    }
+    return yBelow;
+  };
+  const popupX = () => Math.max(0, Math.min(visualCursorX(), width() - 30));
+
   return (
     <tui-box x={0} y={0} width={width()} height={height()} border={false}>
       {/* Gutters & Buffer View */}
@@ -128,20 +158,20 @@ export const VimUI: Component<VimUIProps> = (props) => {
       {/* Completion Popup */}
       <Show when={completionItems().length > 0}>
         <tui-box 
-          x={Math.min(visualCursorX(), width() - 30)} 
-          y={visualCursorY() + 1} 
+          x={popupX()} 
+          y={popupY()} 
           width={30} 
-          height={Math.min(10, completionItems().length)}
+          height={popupHeight()}
           border={true}
           title='Completions'
         >
-          <For each={completionItems().slice(0, 10)}>
+          <For each={visibleCompletions()}>
             {(item: any, i: () => number) => {
-              const isSelected = () => i() === selectedCompletionIndex();
+              const isSelected = () => (i() + completionStartIndex()) === selectedCompletionIndex();
               return (
                 <tui-text 
-                  x={0} 
-                  y={i()} 
+                  x={1} 
+                  y={i() + 1} 
                   content={(isSelected() ? '> ' : '  ') + item.label.slice(0, 26)}
                   color={isSelected() ? '#007acc' : '#ffffff'}
                 />
