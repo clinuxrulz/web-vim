@@ -215,42 +215,61 @@ export default {
             }
           });
       
-          let debounceTimer = null;
-          api.on('TextChanged', async () => {
-            if (debounceTimer) clearTimeout(debounceTimer);
-            
-            debounceTimer = setTimeout(async () => {
-              const buffer = api.getBuffer().join('\\n');
-              if (currentPath && (currentPath.endsWith('.ts') || currentPath.endsWith('.tsx'))) {
-                await worker.updateFile(currentPath, buffer);
-                await updateLints();
-                
-                if (api.getMode() === 'Insert') {
-                  const cursor = api.getCursor();
-                  const bufferLines = api.getBuffer();
-                  let pos = 0;
-                  for (let i = 0; i < cursor.y; i++) {
-                    pos += bufferLines[i].length + 1;
-                  }
-                  pos += cursor.x;
-                  
-                  const completions = await worker.getCompletions(currentPath, pos);
-                  if (completions && completions.length > 0) {
-                    api.showCompletions(completions, (item) => {
-                      const currentBuffer = api.getBuffer();
-                      const line = currentBuffer[cursor.y];
-                      const newLine = line.slice(0, cursor.x) + item.label + line.slice(cursor.x);
-                      currentBuffer[cursor.y] = newLine;
-                      api.setBuffer(currentBuffer);
-                      api.setCursor(cursor.x + item.label.length, cursor.y);
-                    });
-                  } else {
-                    api.hideCompletions();
-                  }
-                }
-              }
-            }, 300);
+      let debounceTimer = null;
+
+      const triggerCompletions = async () => {
+        if (api.getMode() !== 'Insert') return;
+        const cursor = api.getCursor();
+        const bufferLines = api.getBuffer();
+        let pos = 0;
+        for (let i = 0; i < cursor.y; i++) {
+          pos += bufferLines[i].length + 1;
+        }
+        pos += cursor.x;
+        
+        const completions = await worker.getCompletions(currentPath, pos);
+        if (completions && completions.length > 0) {
+          api.showCompletions(completions, (item) => {
+            const currentBuffer = api.getBuffer();
+            const line = currentBuffer[cursor.y];
+            const newLine = line.slice(0, cursor.x) + item.label + line.slice(cursor.x);
+            currentBuffer[cursor.y] = newLine;
+            api.setBuffer(currentBuffer);
+            api.setCursor(cursor.x + item.label.length, cursor.y);
           });
+        } else {
+          api.hideCompletions();
+        }
+      };
+
+      api.on('KeyDown', async (data) => {
+        if (data.key === ' ' && data.ctrl) {
+          await triggerCompletions();
+        }
+      });
+
+      api.on('TextChanged', async () => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        
+        debounceTimer = setTimeout(async () => {
+          const buffer = api.getBuffer().join('\\n');
+          if (currentPath && (currentPath.endsWith('.ts') || currentPath.endsWith('.tsx'))) {
+            await worker.updateFile(currentPath, buffer);
+            await updateLints();
+            
+            if (api.getMode() === 'Insert') {
+              const cursor = api.getCursor();
+              const bufferLines = api.getBuffer();
+              const line = bufferLines[cursor.y];
+              if (line && line[cursor.x - 1] === '.') {
+                await triggerCompletions();
+              } else {
+                api.hideCompletions();
+              }
+            }
+          }
+        }, 300);
+      });
             api.registerGutter({
         name: 'ts-lint',
         width: 2,

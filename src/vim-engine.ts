@@ -254,6 +254,8 @@ export class VimEngine {
   }
 
   public handleKey(key: string, _ctrl: boolean = false) {
+    this.trigger('KeyDown', { key, ctrl: _ctrl });
+
     // Intercept keys if completions are showing
     if (this.completionItems.length > 0) {
       if (key === 'ArrowDown' || (key === 'n' && _ctrl)) {
@@ -446,7 +448,7 @@ export class VimEngine {
       this.buffer[this.cursor.y] = left;
       this.buffer.splice(this.cursor.y + 1, 0, right);
       this.setCursor(0, this.cursor.y + 1);
-    } else if (key.length === 1) {
+    } else if (key.length === 1 && !_ctrl) {
       const line = this.buffer[this.cursor.y] || '';
       this.buffer[this.cursor.y] = line.slice(0, this.cursor.x) + key + line.slice(this.cursor.x);
       this.setCursor(this.cursor.x + 1, this.cursor.y);

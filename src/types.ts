@@ -1,6 +1,6 @@
 export type VimMode = 'Normal' | 'Insert' | 'Command';
 
-export type VimEvent = 'ModeChanged' | 'CursorMoved' | 'TextChanged' | 'BufferLoaded' | 'FileChanged' | 'FileDeleted';
+export type VimEvent = 'ModeChanged' | 'CursorMoved' | 'TextChanged' | 'BufferLoaded' | 'FileChanged' | 'FileDeleted' | 'KeyDown';
 
 export interface CompletionItem {
   label: string;
