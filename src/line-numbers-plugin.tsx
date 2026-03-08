@@ -17,7 +17,7 @@ export default {
         const num = () => (getVal(lineIndex) + 1).toString().padStart(3, ' ');
         // We can use JSX here because we've configured Babel to use 'h'
         return (
-          <text 
+          <tui-text 
             content={() => num() + ' '} 
             color={() => getVal(isCursorLine) ? '#ffffff' : '#888888'} 
           />

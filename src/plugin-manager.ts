@@ -1,4 +1,4 @@
-import type { VimAPI, VimMode, GutterOptions } from './types';
+import type { VimAPI, VimMode, GutterOptions, LineRendererOptions } from './types';
 import { h, Fragment } from './solid-universal-tui';
 import { getConfigFile, writeConfigFile } from './opfs-util';
 

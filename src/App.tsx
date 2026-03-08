@@ -24,6 +24,11 @@ export default {
     if (lineNumbers) {
       await api.loadPluginFromSource("line-numbers", lineNumbers);
     }
+    
+    const tsLsp = await api.fs.readFile(".config/web-vim/prelude/ts-lsp.tsx");
+    if (tsLsp) {
+      await api.loadPluginFromSource("ts-lsp", tsLsp);
+    }
   }
 };
 `;
@@ -97,6 +102,11 @@ export default function App() {
     isReadOnly: false,
     plugins: [] as any[],
     gutters: [] as any[],
+    lineRenderers: [] as any[],
+    completionItems: [] as any[],
+    selectedCompletionIndex: 0,
+    hoverText: null as string | null,
+    hoverPos: { x: 0, y: 0 },
   });
 
   const [viewportHeight, setViewportHeight] = createSignal(window.innerHeight);
@@ -405,6 +415,11 @@ export default {
           isReadOnly={() => vimState().isReadOnly}
           plugins={() => vimState().plugins}
           gutters={() => vimState().gutters}
+          lineRenderers={() => vimState().lineRenderers}
+          completionItems={() => vimState().completionItems}
+          selectedCompletionIndex={() => vimState().selectedCompletionIndex}
+          hoverText={() => vimState().hoverText}
+          hoverPos={() => vimState().hoverPos}
           width={() => gridDim().width}
           height={() => gridDim().height}
           onCursorChange={(c) => setVisualCursor(c)}

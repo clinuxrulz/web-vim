@@ -1,5 +1,5 @@
 import { PluginManager } from './plugin-manager';
-import type { VimMode, VimEvent, VimAPI, GutterOptions } from './types';
+import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem } from './types';
 import { getConfigFile, writeConfigFile, listDirectory, isDirectory, PRELUDE_BASE } from './opfs-util';
 
 export class VimEngine {
@@ -16,10 +16,18 @@ export class VimEngine {
   private explorerPath = '';
   private isReadOnly = false;
   private gutters: GutterOptions[] = [];
+  private lineRenderers: any[] = [];
   private commands: Record<string, (args: string[]) => void> = {};
   private onUpdate: () => void;
   private eventListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
   private pluginManager: PluginManager;
+
+  // Completion & Hover State
+  private completionItems: CompletionItem[] = [];
+  private selectedCompletionIndex = 0;
+  private onCompletionSelect: ((item: CompletionItem) => void) | null = null;
+  private hoverText: string | null = null;
+  private hoverPos = { x: 0, y: 0 };
 
   constructor(onUpdate: () => void) {
     this.onUpdate = onUpdate;
@@ -48,9 +56,11 @@ export class VimEngine {
       }
       
       try {
-        await writeConfigFile(targetPath, this.buffer.join('\n'));
+        const content = this.buffer.join('\n');
+        await writeConfigFile(targetPath, content);
         this.currentFilePath = targetPath;
         console.log(`"${targetPath}" saved`);
+        this.trigger('FileChanged', { path: targetPath, content });
         this.onUpdate();
       } catch (err) {
         console.error('Failed to save file:', err);
@@ -102,6 +112,7 @@ export class VimEngine {
       this.isReadOnly = path.startsWith(PRELUDE_BASE);
       this.cursor = { x: 0, y: 0 };
       this.trigger('TextChanged');
+      this.trigger('BufferLoaded', { path, content });
       this.onUpdate();
       console.log(`Opened "${path}"${this.isReadOnly ? ' [ReadOnly]' : ''}`);
     } else {
@@ -136,8 +147,41 @@ export class VimEngine {
         this.gutters.push(options);
         this.gutters.sort((a, b) => (b.priority || 0) - (a.priority || 0));
         this.onUpdate();
+      },
+      registerLineRenderer: (options: any) => {
+        console.log(`[VimEngine] Registering line renderer: ${options.name}`);
+        this.lineRenderers.push(options);
+        this.lineRenderers.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+        this.onUpdate();
+      },
+      
+      showCompletions: (items, onSelect) => {
+        this.completionItems = items;
+        this.selectedCompletionIndex = 0;
+        this.onCompletionSelect = onSelect;
+        this.onUpdate();
+      },
+      hideCompletions: () => {
+        this.completionItems = [];
+        this.onCompletionSelect = null;
+        this.onUpdate();
+      },
+      showHover: (text, x, y) => {
+        this.hoverText = text;
+        this.hoverPos = { x, y };
+        this.onUpdate();
+      },
+      hideHover: () => {
+        this.hoverText = null;
+        this.onUpdate();
       }
     };
+  }
+
+  public hideCompletions() {
+    this.completionItems = [];
+    this.onCompletionSelect = null;
+    this.onUpdate();
   }
 
   public setViewportHeight(height: number) {
@@ -201,10 +245,46 @@ export class VimEngine {
       isReadOnly: this.isReadOnly,
       plugins: this.pluginManager.getLoadedPlugins(),
       gutters: this.gutters,
+      lineRenderers: this.lineRenderers,
+      completionItems: this.completionItems,
+      selectedCompletionIndex: this.selectedCompletionIndex,
+      hoverText: this.hoverText,
+      hoverPos: this.hoverPos,
     };
   }
 
   public handleKey(key: string, _ctrl: boolean = false) {
+    this.trigger('KeyDown', { key, ctrl: _ctrl });
+
+    // Intercept keys if completions are showing
+    if (this.completionItems.length > 0) {
+      if (key === 'ArrowDown' || (key === 'n' && _ctrl)) {
+        this.selectedCompletionIndex = (this.selectedCompletionIndex + 1) % this.completionItems.length;
+        this.onUpdate();
+        return;
+      }
+      if (key === 'ArrowUp' || (key === 'p' && _ctrl)) {
+        this.selectedCompletionIndex = (this.selectedCompletionIndex - 1 + this.completionItems.length) % this.completionItems.length;
+        this.onUpdate();
+        return;
+      }
+      if (key === 'Enter' || key === 'Tab') {
+        const item = this.completionItems[this.selectedCompletionIndex];
+        if (this.onCompletionSelect) {
+          this.onCompletionSelect(item);
+        }
+        this.hideCompletions();
+        return;
+      }
+      if (key === 'Escape') {
+        this.hideCompletions();
+        return;
+      }
+      if (key === 'Backspace') {
+        this.hideCompletions();
+      }
+    }
+
     if (this.isExplorer && this.mode === 'Normal' && key === 'Enter') {
       this.handleExplorerSelect();
       this.onUpdate();
@@ -222,6 +302,11 @@ export class VimEngine {
     
     if (this.mode !== oldMode) {
       this.trigger('ModeChanged', { from: oldMode, to: this.mode });
+    }
+    
+    // Check if buffer might have changed
+    if (this.mode === 'Insert' || (this.mode === 'Normal' && key === 'x')) {
+      this.trigger('TextChanged');
     }
     
     this.onUpdate();
@@ -363,7 +448,7 @@ export class VimEngine {
       this.buffer[this.cursor.y] = left;
       this.buffer.splice(this.cursor.y + 1, 0, right);
       this.setCursor(0, this.cursor.y + 1);
-    } else if (key.length === 1) {
+    } else if (key.length === 1 && !_ctrl) {
       const line = this.buffer[this.cursor.y] || '';
       this.buffer[this.cursor.y] = line.slice(0, this.cursor.x) + key + line.slice(this.cursor.x);
       this.setCursor(this.cursor.x + 1, this.cursor.y);

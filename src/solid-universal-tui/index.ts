@@ -1,4 +1,5 @@
 import { createRenderer } from 'solid-js/universal';
+import { type JSX as SolidJSX } from 'solid-js';
 
 export interface TuiElement {
   type: 'Box' | 'Text';
@@ -26,7 +27,10 @@ export const {
   mergeProps,
 } = createRenderer<TuiElement | any>({
   createElement(tag) {
-    const type = (tag.charAt(0).toUpperCase() + tag.slice(1)) as any;
+    let type = (tag.charAt(0).toUpperCase() + tag.slice(1)) as any;
+    if (tag === 'tui-box') type = 'Box';
+    if (tag === 'tui-text') type = 'Text';
+    
     const node = {
       __id: ++idCounter,
       type,
@@ -49,7 +53,13 @@ export const {
   },
   setProperty(node, name, value) {
     if (!node.props) node.props = {};
-    node.props[name] = value;
+    if (typeof value === 'function' && !name.startsWith('on')) {
+      effect(() => {
+        node.props[name] = value();
+      });
+    } else {
+      node.props[name] = value;
+    }
   },
   insertNode(parent, node, anchor) {
     if (!parent || !node) return;
@@ -138,11 +148,18 @@ export function h(tag: any, props: any, ...children: any[]) {
   return el;
 }
 
-declare module "solid-js" {
-  namespace JSX {
-    interface IntrinsicElements {
-      box: any;
-      text: any;
-    }
+export namespace JSX {
+  export type Element = SolidJSX.Element;
+  export type ArrayElement = SolidJSX.ArrayElement;
+  export type FunctionElement = SolidJSX.FunctionElement;
+  export interface IntrinsicElements {
+    'tui-box': any;
+    'tui-text': any;
+    box: any;
+    text: any;
   }
+  export type ElementClass = SolidJSX.ElementClass;
+  export type ElementAttributesProperty = SolidJSX.ElementAttributesProperty;
+  export type ElementChildrenAttribute = SolidJSX.ElementChildrenAttribute;
+  export type IntrinsicAttributes = SolidJSX.IntrinsicAttributes;
 }
