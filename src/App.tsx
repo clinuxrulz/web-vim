@@ -201,6 +201,12 @@ export default {
         window.visualViewport.addEventListener('scroll', updateViewport);
         updateViewport();
       }
+
+      // Update dimensions when virtual keyboard visibility changes
+      createEffect(() => {
+        showKeyboard();
+        updateDimensions();
+      });
       
       // Initialize Plugins
       
@@ -608,6 +614,7 @@ export default {
           cursorX={visualCursor().x}
           cursorY={visualCursor().y}
           crtEnabled={crtEnabled()}
+          showKeyboard={showKeyboard()}
           onMeasure={(size) => {
             console.log('Measured font size:', size);
             setCharSize(size);

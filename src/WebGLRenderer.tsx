@@ -9,6 +9,7 @@ interface WebGLRendererProps {
   cursorX: number;
   cursorY: number;
   crtEnabled?: boolean;
+  showKeyboard?: boolean;
   onMeasure?: (size: { width: number, height: number }) => void;
 }
 
@@ -343,7 +344,8 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
       height: props.height,
       cursorX: props.cursorX,
       cursorY: props.cursorY,
-      crtEnabled: props.crtEnabled
+      crtEnabled: props.crtEnabled,
+      showKeyboard: props.showKeyboard
     };
     
     updateTextures();
