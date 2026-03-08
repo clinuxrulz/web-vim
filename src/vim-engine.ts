@@ -178,6 +178,12 @@ export class VimEngine {
     };
   }
 
+  public hideCompletions() {
+    this.completionItems = [];
+    this.onCompletionSelect = null;
+    this.onUpdate();
+  }
+
   public setViewportHeight(height: number) {
     this.viewportHeight = height;
     this.scrollCursorIntoView();
