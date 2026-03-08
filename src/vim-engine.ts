@@ -296,6 +296,11 @@ export class VimEngine {
       this.trigger('ModeChanged', { from: oldMode, to: this.mode });
     }
     
+    // Check if buffer might have changed
+    if (this.mode === 'Insert' || (this.mode === 'Normal' && key === 'x')) {
+      this.trigger('TextChanged');
+    }
+    
     this.onUpdate();
   }
 

@@ -32,6 +32,8 @@ export interface LineRendererOptions {
     lineContent: string | (() => string); 
     isCursorLine: boolean | (() => boolean) 
     gutterWidth: number | (() => number)
+    leftCol: number | (() => number)
+    viewportWidth: number | (() => number)
   }) => any;
 }
 

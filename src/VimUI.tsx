@@ -96,7 +96,9 @@ export const VimUI: Component<VimUIProps> = (props) => {
               lineIndex: absoluteLineIndex,
               lineContent: line,
               isCursorLine: () => cursor().y === absoluteLineIndex(),
-              gutterWidth: totalGutterWidth
+              gutterWidth: totalGutterWidth,
+              leftCol: leftCol,
+              viewportWidth: viewportWidth
             })
           ])
         ])
