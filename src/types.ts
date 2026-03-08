@@ -7,6 +7,8 @@ declare module "solid-js" {
   }
 }
 
+export const TYPES_VERSION = '1.0.0';
+
 export type VimMode = 'Normal' | 'Insert' | 'Command';
 
 export type VimEvent = 'ModeChanged' | 'CursorMoved' | 'TextChanged' | 'BufferLoaded' | 'FileChanged' | 'FileDeleted' | 'KeyDown';
@@ -46,6 +48,13 @@ export interface LineRendererOptions {
   }) => any;
 }
 
+export interface FileSystem {
+  readFile: (path: string) => Promise<string | null>;
+  writeFile: (path: string, content: string) => Promise<void>;
+  listDirectory: (path: string) => Promise<string[]>;
+  isDirectory: (path: string) => Promise<boolean>;
+}
+
 export interface VimAPI {
   registerCommand: (name: string, callback: (args: string[]) => void) => void;
   getBuffer: () => string[];
@@ -64,4 +73,9 @@ export interface VimAPI {
   hideCompletions: () => void;
   showHover: (text: string, x: number, y: number) => void;
   hideHover: () => void;
+
+  // File System
+  setFS: (fs: FileSystem) => void;
+  getFS: () => FileSystem;
+  resetFS: () => void;
 }

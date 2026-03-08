@@ -176,7 +176,7 @@ export default {
       const Comlink = await import("https://esm.sh/comlink@4.4.1");
       api.log('TS-LSP: Comlink loaded. Loading worker source...');
       
-      const workerSource = await api.fs.readFile(".config/web-vim/prelude/ts-lsp-worker.ts");
+      const workerSource = await api.configFs.readFile(".config/web-vim/prelude/ts-lsp-worker.ts");
       if (!workerSource) {
         api.log("TS-LSP Error: Could not find worker source");
         return;
@@ -344,6 +344,111 @@ export default {
     } catch (err) {
       api.log('TS-LSP Setup Error: ' + err.message);
     }
+  }
+};
+`,
+  'external-fs.tsx': `
+export default {
+  metadata: {
+    name: "external-fs",
+    description: "Access local device folders using :ed"
+  },
+  setup: (api) => {
+    const createExternalFS = (rootHandle) => {
+      const getHandle = async (path, create = false) => {
+        const parts = path.split("/").filter(p => p.length > 0);
+        
+        let current = rootHandle;
+        if (parts.length === 0) return { dir: current, name: "" };
+
+        // Navigate all but last
+        for (let i = 0; i < parts.length - 1; i++) {
+          current = await current.getDirectoryHandle(parts[i], { create });
+        }
+        return { dir: current, name: parts[parts.length - 1] };
+      };
+
+      return {
+        readFile: async (path) => {
+          try {
+            const { dir, name } = await getHandle(path);
+            if (!name) return null; // Root is a directory
+            const fileHandle = await dir.getFileHandle(name);
+            const file = await fileHandle.getFile();
+            return await file.text();
+          } catch (e) { return null; }
+        },
+        writeFile: async (path, content) => {
+          const { dir, name } = await getHandle(path, true);
+          const fileHandle = await dir.getFileHandle(name, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(content);
+          await writable.close();
+        },
+        listDirectory: async (path) => {
+          try {
+            let dir = rootHandle;
+            if (path && path !== "." && path !== "/") {
+              const parts = path.split("/").filter(p => p.length > 0);
+              for (const part of parts) {
+                dir = await dir.getDirectoryHandle(part);
+              }
+            }
+            const entries = [];
+            // @ts-ignore
+            for await (const [name, handle] of dir.entries()) {
+              entries.push(handle.kind === "directory" ? name + "/" : name);
+            }
+            return entries;
+          } catch (e) { 
+            api.log("List dir failed: " + e.message);
+            return []; 
+          }
+        },
+        isDirectory: async (path) => {
+          if (!path || path === "." || path === "/") return true;
+          try {
+            const parts = path.split("/").filter(p => p.length > 0);
+            let current = rootHandle;
+            for (const part of parts) {
+              current = await current.getDirectoryHandle(part);
+            }
+            return true;
+          } catch (e) { return false; }
+        }
+      };
+    };
+
+    api.registerCommand("ed", async (args) => {
+      if (args[0] === "reset" || args[0] === "opfs") {
+        api.resetFS();
+        api.log("Switched back to OPFS");
+        api.executeCommand("e .");
+        return;
+      }
+
+      try {
+        // @ts-ignore
+        const handle = await window.showDirectoryPicker({
+          mode: "readwrite"
+        });
+        
+        // @ts-ignore
+        if (await handle.queryPermission({ mode: "readwrite" }) !== "granted") {
+          // @ts-ignore
+          await handle.requestPermission({ mode: "readwrite" });
+        }
+
+        const fs = createExternalFS(handle);
+        api.setFS(fs);
+        api.log("Mounted external folder");
+        api.executeCommand("e ."); // Refresh explorer to root
+      } catch (err) {
+        api.log("Failed to mount folder: " + err.message);
+      }
+    });
+    
+    api.log("External-FS plugin ready. Use :ed to mount a folder.");
   }
 };
 `

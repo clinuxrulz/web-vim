@@ -6,6 +6,13 @@ import { PRELUDE_PLUGINS } from './prelude';
 
 export const PRELUDE_BASE = '.config/web-vim/prelude';
 
+export const opfsFS = {
+  readFile: getConfigFile,
+  writeFile: writeConfigFile,
+  listDirectory,
+  isDirectory,
+};
+
 export async function getConfigFile(path: string): Promise<string | null> {
   // Handle virtual prelude files
   if (path.startsWith(PRELUDE_BASE + '/')) {

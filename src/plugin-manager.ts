@@ -11,8 +11,13 @@ export interface ScopedVimAPI extends VimAPI {
   };
   // Log with plugin identification
   log: (...args: any[]) => void;
-  // File system access (logical isolation is harder here, but we'll provide the tool)
+  // File system access (workspace active FS)
   fs: {
+    readFile: (path: string) => Promise<string | null>;
+    writeFile: (path: string, content: string) => Promise<void>;
+  };
+  // Configuration access (always OPFS)
+  configFs: {
     readFile: (path: string) => Promise<string | null>;
     writeFile: (path: string, content: string) => Promise<void>;
   };
@@ -131,8 +136,14 @@ export class PluginManager {
         console.log(`[Plugin: ${pluginId}]`, ...args);
       },
 
-      // File system access
+      // Workspace File system access (uses current active FS)
       fs: {
+        readFile: (path: string) => baseApi.getFS().readFile(path),
+        writeFile: (path: string, content: string) => baseApi.getFS().writeFile(path, content),
+      },
+
+      // Configuration access (always OPFS)
+      configFs: {
         readFile: (path: string) => getConfigFile(path),
         writeFile: (path: string, content: string) => writeConfigFile(path, content),
       },

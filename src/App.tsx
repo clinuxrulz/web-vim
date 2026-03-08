@@ -20,14 +20,19 @@ export default {
     api.log("Custom init.ts loaded from OPFS!");
     
     // Load built-in plugins from the virtual prelude if desired:
-    const lineNumbers = await api.fs.readFile(".config/web-vim/prelude/line-numbers.tsx");
+    const lineNumbers = await api.configFs.readFile(".config/web-vim/prelude/line-numbers.tsx");
     if (lineNumbers) {
       await api.loadPluginFromSource("line-numbers", lineNumbers);
     }
     
-    const tsLsp = await api.fs.readFile(".config/web-vim/prelude/ts-lsp.tsx");
+    const tsLsp = await api.configFs.readFile(".config/web-vim/prelude/ts-lsp.tsx");
     if (tsLsp) {
       await api.loadPluginFromSource("ts-lsp", tsLsp);
+    }
+
+    const externalFs = await api.configFs.readFile(".config/web-vim/prelude/external-fs.tsx");
+    if (externalFs) {
+      await api.loadPluginFromSource("external-fs", externalFs);
     }
   }
 };

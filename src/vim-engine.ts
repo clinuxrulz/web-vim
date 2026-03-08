@@ -1,6 +1,6 @@
 import { PluginManager } from './plugin-manager';
-import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem } from './types';
-import { getConfigFile, writeConfigFile, listDirectory, isDirectory, PRELUDE_BASE } from './opfs-util';
+import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem, FileSystem } from './types';
+import { opfsFS, PRELUDE_BASE } from './opfs-util';
 
 export class VimEngine {
   private buffer: string[] = ['Welcome to Web-Vim!', 'Press i to insert text', 'Press Esc to return to Normal mode', 'Type :q to quit'];
@@ -21,6 +21,7 @@ export class VimEngine {
   private onUpdate: () => void;
   private eventListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
   private pluginManager: PluginManager;
+  private fs: FileSystem = opfsFS;
 
   // Completion & Hover State
   private completionItems: CompletionItem[] = [];
@@ -57,7 +58,7 @@ export class VimEngine {
       
       try {
         const content = this.buffer.join('\n');
-        await writeConfigFile(targetPath, content);
+        await this.fs.writeFile(targetPath, content);
         this.currentFilePath = targetPath;
         console.log(`"${targetPath}" saved`);
         this.trigger('FileChanged', { path: targetPath, content });
@@ -72,7 +73,7 @@ export class VimEngine {
       if (path === '.') path = ''; // Root
       
       try {
-        if (await isDirectory(path)) {
+        if (await this.fs.isDirectory(path)) {
           await this.openDirectory(path);
         } else {
           await this.openFile(path);
@@ -84,7 +85,7 @@ export class VimEngine {
   }
 
   private async openDirectory(path: string) {
-    const entries = await listDirectory(path);
+    const entries = await this.fs.listDirectory(path);
     this.buffer = [
       `" Explorer: ${path || '/'}`,
       `" ============================================================================`,
@@ -104,7 +105,7 @@ export class VimEngine {
   }
 
   private async openFile(path: string) {
-    const content = await getConfigFile(path);
+    const content = await this.fs.readFile(path);
     if (content !== null) {
       this.buffer = content.split('\n');
       this.currentFilePath = path;
@@ -174,7 +175,10 @@ export class VimEngine {
       hideHover: () => {
         this.hoverText = null;
         this.onUpdate();
-      }
+      },
+      setFS: (fs) => { this.fs = fs; },
+      getFS: () => this.fs,
+      resetFS: () => { this.fs = opfsFS; },
     };
   }
 
@@ -332,7 +336,7 @@ export class VimEngine {
     // but our listDirectory adds it for visual distinction.
     const cleanPath = fullPath.endsWith('/') ? fullPath.slice(0, -1) : fullPath;
 
-    if (await isDirectory(cleanPath)) {
+    if (await this.fs.isDirectory(cleanPath)) {
       await this.openDirectory(cleanPath);
     } else {
       await this.openFile(cleanPath);
