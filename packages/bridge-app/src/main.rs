@@ -8,7 +8,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -17,6 +16,7 @@ use uuid::Uuid;
 #[derive(Clone)]
 struct AppState {
     key: String,
+    root_dir: std::path::PathBuf,
 }
 
 #[derive(Deserialize)]
@@ -47,8 +47,11 @@ async fn auth(
     Err(StatusCode::UNAUTHORIZED)
 }
 
-async fn list_directory(Query(params): Query<PathParams>) -> impl IntoResponse {
-    let path = Path::new(&params.path);
+async fn list_directory(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<PathParams>
+) -> impl IntoResponse {
+    let path = state.root_dir.join(&params.path);
     if !path.exists() {
         return (StatusCode::NOT_FOUND, "Path not found").into_response();
     }
@@ -72,8 +75,11 @@ async fn list_directory(Query(params): Query<PathParams>) -> impl IntoResponse {
     }
 }
 
-async fn read_file(Query(params): Query<PathParams>) -> impl IntoResponse {
-    let path = Path::new(&params.path);
+async fn read_file(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<PathParams>
+) -> impl IntoResponse {
+    let path = state.root_dir.join(&params.path);
     if !path.exists() {
         return (StatusCode::NOT_FOUND, "File not found").into_response();
     }
@@ -87,8 +93,12 @@ async fn read_file(Query(params): Query<PathParams>) -> impl IntoResponse {
     }
 }
 
-async fn write_file(Query(params): Query<PathParams>, body: String) -> impl IntoResponse {
-    let path = Path::new(&params.path);
+async fn write_file(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<PathParams>,
+    body: String
+) -> impl IntoResponse {
+    let path = state.root_dir.join(&params.path);
     
     // Ensure parent directory exists
     if let Some(parent) = path.parent() {
@@ -105,8 +115,11 @@ async fn write_file(Query(params): Query<PathParams>, body: String) -> impl Into
     }
 }
 
-async fn is_directory(Query(params): Query<PathParams>) -> impl IntoResponse {
-    let path = Path::new(&params.path);
+async fn is_directory(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<PathParams>
+) -> impl IntoResponse {
+    let path = state.root_dir.join(&params.path);
     Json(IsDirResponse {
         is_dir: path.is_dir(),
     })
@@ -119,7 +132,12 @@ async fn main() {
         .init();
 
     let key = Uuid::new_v4().to_string();
-    let state = Arc::new(AppState { key: key.clone() });
+    let root_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    
+    let state = Arc::new(AppState { 
+        key: key.clone(),
+        root_dir: root_dir.clone(),
+    });
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -140,6 +158,7 @@ async fn main() {
     
     println!("\n====================================================");
     println!("Bridge server running on http://{}", addr);
+    println!("Root Directory: {}", root_dir.display());
     println!("Bridge Security Key: {}", key);
     println!("\nTo connect from Web-Vim, use command:");
     println!(":ed bridge {} {}", port, key);
