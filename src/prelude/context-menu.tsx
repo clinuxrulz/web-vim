@@ -14,7 +14,7 @@ export default {
           if (text) {
             api.insertText(text);
           }
-        } catch (err) {
+        } catch (err: any) {
           api.log("Paste failed: " + err.message);
         }
       }

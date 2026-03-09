@@ -16,9 +16,9 @@ export default {
         const getVal = (val: any) => (typeof val === "function" ? val() : val);
         const num = () => (getVal(lineIndex) + 1).toString().padStart(3, " ");
         return (
-          <text 
-            content={() => num() + " "} 
-            color={() => getVal(isCursorLine) ? "#ffffff" : "#888888"} 
+          <tui-text 
+            content={num() + " "} 
+            color={getVal(isCursorLine) ? "#ffffff" : "#888888"} 
           />
         );
       }

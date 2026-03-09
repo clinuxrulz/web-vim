@@ -3,6 +3,8 @@ declare module "solid-js" {
     interface IntrinsicElements {
       'tui-box': any;
       'tui-text': any;
+      'text': any;
+      'box': any;
     }
   }
 }

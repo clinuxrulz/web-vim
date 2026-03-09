@@ -4,10 +4,10 @@ export default {
     name: "external-fs",
     description: "Access local device folders using :ed"
   },
-  setup: (api) => {
-    const createExternalFS = (rootHandle) => {
-      const getHandle = async (path, create = false) => {
-        const parts = path.split("/").filter(p => p.length > 0);
+  setup: (api: any) => {
+    const createExternalFS = (rootHandle: any) => {
+      const getHandle = async (path: string, create = false) => {
+        const parts = path.split("/").filter((p: string) => p.length > 0);
         
         let current = rootHandle;
         if (parts.length === 0) return { dir: current, name: "" };
@@ -20,7 +20,7 @@ export default {
       };
 
       return {
-        readFile: async (path) => {
+        readFile: async (path: string) => {
           try {
             const { dir, name } = await getHandle(path);
             if (!name) return null; // Root is a directory
@@ -29,18 +29,18 @@ export default {
             return await file.text();
           } catch (e) { return null; }
         },
-        writeFile: async (path, content) => {
+        writeFile: async (path: string, content: string) => {
           const { dir, name } = await getHandle(path, true);
           const fileHandle = await dir.getFileHandle(name, { create: true });
           const writable = await fileHandle.createWritable();
           await writable.write(content);
           await writable.close();
         },
-        listDirectory: async (path) => {
+        listDirectory: async (path: string) => {
           try {
             let dir = rootHandle;
             if (path && path !== "." && path !== "/") {
-              const parts = path.split("/").filter(p => p.length > 0);
+              const parts = path.split("/").filter((p: string) => p.length > 0);
               for (const part of parts) {
                 dir = await dir.getDirectoryHandle(part);
               }
@@ -51,15 +51,15 @@ export default {
               entries.push(handle.kind === "directory" ? name + "/" : name);
             }
             return entries;
-          } catch (e) { 
+          } catch (e: any) { 
             api.log("List dir failed: " + e.message);
             return []; 
           }
         },
-        isDirectory: async (path) => {
+        isDirectory: async (path: string) => {
           if (!path || path === "." || path === "/") return true;
           try {
-            const parts = path.split("/").filter(p => p.length > 0);
+            const parts = path.split("/").filter((p: string) => p.length > 0);
             let current = rootHandle;
             for (const part of parts) {
               current = await current.getDirectoryHandle(part);
@@ -70,7 +70,7 @@ export default {
       };
     };
 
-    api.registerCommand("ed", async (args) => {
+    api.registerCommand("ed", async (args: string[]) => {
       if (args[0] === "reset" || args[0] === "opfs") {
         api.resetFS();
         api.log("Switched back to OPFS");
@@ -93,19 +93,19 @@ export default {
         };
         
         const bridgeFS = {
-          readFile: async (path) => {
+          readFile: async (path: string) => {
             try {
               const response = await fetch(`${baseUrl}/cat?path=${encodeURIComponent(path)}`, { headers });
               if (response.status === 404) return null;
               if (response.status === 401) { api.log("Bridge Error: Unauthorized (Invalid Key)"); return null; }
               if (!response.ok) throw new Error(await response.text());
               return await response.text();
-            } catch (err) {
+            } catch (err: any) {
               api.log('BridgeFS readFile error: ' + err.message);
               return null;
             }
           },
-          writeFile: async (path, content) => {
+          writeFile: async (path: string, content: string) => {
             try {
               const response = await fetch(`${baseUrl}/write?path=${encodeURIComponent(path)}`, {
                 method: 'POST',
@@ -114,30 +114,30 @@ export default {
               });
               if (response.status === 401) { api.log("Bridge Error: Unauthorized (Invalid Key)"); throw new Error("Unauthorized"); }
               if (!response.ok) throw new Error(await response.text());
-            } catch (err) {
+            } catch (err: any) {
               api.log('BridgeFS writeFile error: ' + err.message);
               throw err;
             }
           },
-          listDirectory: async (path) => {
+          listDirectory: async (path: string) => {
             try {
               const response = await fetch(`${baseUrl}/ls?path=${encodeURIComponent(path)}`, { headers });
               if (response.status === 401) { api.log("Bridge Error: Unauthorized (Invalid Key)"); return []; }
               if (!response.ok) throw new Error(await response.text());
               return await response.json();
-            } catch (err) {
+            } catch (err: any) {
               api.log('BridgeFS listDirectory error: ' + err.message);
               return [];
             }
           },
-          isDirectory: async (path) => {
+          isDirectory: async (path: string) => {
             try {
               const response = await fetch(`${baseUrl}/is_dir?path=${encodeURIComponent(path)}`, { headers });
               if (response.status === 401) { api.log("Bridge Error: Unauthorized (Invalid Key)"); return false; }
               if (!response.ok) throw new Error(await response.text());
               const data = await response.json();
               return data.is_dir;
-            } catch (err) {
+            } catch (err: any) {
               api.log('BridgeFS isDirectory error: ' + err.message);
               return false;
             }
@@ -166,7 +166,7 @@ export default {
         api.setFS(fs);
         api.log("Mounted external folder");
         api.executeCommand("e ."); // Refresh explorer to root
-      } catch (err) {
+      } catch (err: any) {
         api.log("Failed to mount folder: " + err.message);
       }
     });

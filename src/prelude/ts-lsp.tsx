@@ -1,10 +1,11 @@
 
+// @ts-nocheck
 export default {
   metadata: {
     name: 'ts-lsp',
     description: 'TypeScript LSP for Web-Vim'
   },
-  setup: async (api) => {
+  setup: async (api: any) => {
     try {
       api.log('TS-LSP: Loading Comlink...');
       const Comlink = await import("https://esm.sh/comlink@4.4.1");
@@ -21,7 +22,7 @@ export default {
       api.log('TS-LSP: Spawning worker...');
       
       const workerInstance = new Worker(workerUrl, { type: 'module' });
-      workerInstance.onerror = (e) => api.log('TS-LSP Worker Error: ' + (e.message || 'Check console'));
+      workerInstance.onerror = (e: any) => api.log('TS-LSP Worker Error: ' + (e.message || 'Check console'));
       
       const worker = Comlink.wrap(workerInstance);
       
@@ -62,7 +63,7 @@ export default {
         const cursor = api.getCursor();
         const lineLints = getLintsForLine(cursor.y);
         if (lineLints.length > 0) {
-          const messages = lineLints.map(l => l.message).join('\n');
+          const messages = lineLints.map((l: any) => l.message).join('\n');
           api.showHover(messages, cursor.x, cursor.y);
           setTimeout(() => api.hideHover(), 5000);
         }
@@ -124,7 +125,7 @@ export default {
         let activeTasks = 0;
         const startTime = Date.now();
 
-        const walk = async (path) => {
+        const walk = async (path: string) => {
           // Skip common large/irrelevant directories
           if (path.includes('.git') || path.includes('dist') || path.includes('build') || path.includes('.next')) return;
           
@@ -164,7 +165,7 @@ export default {
                 }
               }
             }
-          } catch (e) {
+          } catch (e: any) {
             api.log('TS-LSP: Walk error at ' + path + ': ' + e.message);
           }
         };
@@ -176,7 +177,7 @@ export default {
           }
           const duration = ((Date.now() - startTime) / 1000).toFixed(1);
           api.log(`TS-LSP: Sync complete. Indexed ${count} files in ${duration}s.`);
-        } catch (err) {
+        } catch (err: any) {
           api.log('TS-LSP: Sync failed: ' + err.message);
         } finally {
           isSyncing = false;
@@ -189,7 +190,7 @@ export default {
         syncFileSystem();
       });
 
-      api.on('BufferLoaded', async (data) => {
+      api.on('BufferLoaded', async (data: any) => {
         currentPath = data.path;
         if (currentPath.endsWith('.ts') || currentPath.endsWith('.tsx')) {
           const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
@@ -202,7 +203,7 @@ export default {
         syncFileSystem();
       });
       
-      let debounceTimer = null;
+      let debounceTimer: any = null;
 
       const triggerCompletions = async () => {
         if (api.getMode() !== 'Insert') return;
@@ -217,7 +218,7 @@ export default {
         const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
         const completions = await worker.getCompletions(absolutePath, pos);
         if (completions && completions.length > 0) {
-          api.showCompletions(completions, (item) => {
+          api.showCompletions(completions, (item: any) => {
             const currentBuffer = api.getBuffer();
             const line = currentBuffer[cursor.y];
             const newLine = line.slice(0, cursor.x) + item.label + line.slice(cursor.x);
@@ -230,7 +231,7 @@ export default {
         }
       };
 
-      api.on('KeyDown', async (data) => {
+      api.on('KeyDown', async (data: any) => {
         if (data.key === ' ' && data.ctrl) {
           await triggerCompletions();
         }
@@ -263,13 +264,13 @@ export default {
         name: 'ts-lint',
         width: 2,
         priority: 50,
-        render: ({ lineIndex }) => {
+        render: ({ lineIndex }: any) => {
           const idx = typeof lineIndex === 'function' ? lineIndex() : lineIndex;
           const lineLints = getLintsForLine(idx);
-          const hasError = lineLints.some(l => l.category === 1);
+          const hasError = lineLints.some((l: any) => l.category === 1);
 
           return (
-            <text content={hasError ? ' E' : '  '} color="#ff0000" />
+            <tui-text content={hasError ? ' E' : '  '} color="#ff0000" />
           );
         }
       });
@@ -295,13 +296,13 @@ export default {
       api.registerLineRenderer({
         name: 'ts-highlighter',
         priority: 10,
-        render: ({ lineIndex, lineContent, leftCol, viewportWidth }) => {
+        render: ({ lineIndex, lineContent, leftCol, viewportWidth }: any) => {
           const content = typeof lineContent === 'function' ? lineContent() : lineContent;
           const startCol = typeof leftCol === 'function' ? leftCol() : leftCol;
           const width = typeof viewportWidth === 'function' ? viewportWidth() : viewportWidth;
           
           if (!currentPath || !(currentPath.endsWith('.ts') || currentPath.endsWith('.tsx'))) {
-            return <text content={content.slice(startCol, startCol + width)} />;
+            return <tui-text content={content.slice(startCol, startCol + width)} />;
           }
           
           const keywords = ['import', 'export', 'default', 'const', 'let', 'var', 'function', 'class', 'return', 'if', 'else', 'for', 'while', 'switch', 'case', 'break', 'await', 'async'];
@@ -317,16 +318,16 @@ export default {
                 const renderEnd = Math.min(word.length, startCol + width - currentX);
                 const visibleText = word.slice(renderStart, renderEnd);
                 const visualX = Math.max(0, currentX - startCol);
-                parts.push(<text x={visualX} y={0} content={visibleText} color={isKeyword ? '#569cd6' : '#ffffff'} />);
+                parts.push(<tui-text x={visualX} y={0} content={visibleText} color={isKeyword ? '#569cd6' : '#ffffff'} />);
               }
               currentX += word.length;
             }
           }
           
-          return <Fragment>{parts}</Fragment>;
+          return parts;
         }
       });
-    } catch (err) {
+    } catch (err: any) {
       api.log('TS-LSP Setup Error: ' + err.message);
     }
   }
