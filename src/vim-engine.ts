@@ -23,6 +23,8 @@ export class VimEngine {
   private eventListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
   private pluginManager: PluginManager;
   private fs: FileSystem = opfsFS;
+  private leader = ' '; // Set leader to space as requested
+  private pendingSequence = '';
 
   // Completion & Hover State
   private completionItems: CompletionItem[] = [];
@@ -398,8 +400,49 @@ export class VimEngine {
   }
 
   private handleNormalMode(key: string, ctrl: boolean) {
+    if (this.pendingSequence === 'Ctrl-w') {
+      this.pendingSequence = '';
+      if (key === 'd') {
+        this.executeCommand('showDiagnostics');
+        return;
+      }
+      // If not matched, we still consumed the Ctrl-w, but we should probably 
+      // let the current key be handled if it's not part of the sequence.
+      // However, usually in Vim, unknown sequence ends the sequence.
+    }
+
+    if (this.pendingSequence === 'leader') {
+      this.pendingSequence = '';
+      if (key === 'd') {
+        this.executeCommand('showDiagnostics');
+        return;
+      }
+      if (key === 'e') {
+        this.executeCommand('hover');
+        return;
+      }
+      // Fall through to handle key normally if leader sequence wasn't matched
+    }
+
+    if (this.pendingSequence === '[') {
+      this.pendingSequence = '';
+      if (key === 'd') {
+        this.executeCommand('prevDiagnostic');
+        return;
+      }
+    }
+
+    if (this.pendingSequence === ']') {
+      this.pendingSequence = '';
+      if (key === 'd') {
+        this.executeCommand('nextDiagnostic');
+        return;
+      }
+    }
+
     if (ctrl) {
       switch (key) {
+        case 'w': this.pendingSequence = 'Ctrl-w'; return;
         case 'd': // Scroll down half page
           const halfPage = Math.floor(this.viewportHeight / 2);
           this.setCursor(this.cursor.x, this.cursor.y + halfPage);
@@ -428,6 +471,11 @@ export class VimEngine {
       return;
     }
 
+    if (key === this.leader) {
+      this.pendingSequence = 'leader';
+      return;
+    }
+
     switch (key) {
       case 'i': this.mode = 'Insert'; break;
       case ':': this.mode = 'Command'; this.commandText = ''; break;
@@ -439,6 +487,8 @@ export class VimEngine {
       case 'k': this.moveCursor('up'); break;
       case "ArrowRight":
       case 'l': this.moveCursor('right'); break;
+      case '[': this.pendingSequence = '['; break;
+      case ']': this.pendingSequence = ']'; break;
       case 'Home': this.setCursor(0, this.cursor.y); break;
       case 'End': this.setCursor(this.buffer[this.cursor.y]?.length || 0, this.cursor.y); break;
       case 'PageUp': this.setCursor(this.cursor.x, this.cursor.y - this.viewportHeight); break;

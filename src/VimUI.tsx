@@ -88,6 +88,10 @@ export const VimUI: Component<VimUIProps> = (props) => {
     return completionItems().slice(start, start + MAX_COMPLETIONS);
   };
 
+  const hoverLines = () => (hoverText() || '').split('\n');
+  const hoverHeight = () => hoverLines().length + 2;
+  const hoverWidth = () => Math.max(20, Math.min(40, ...hoverLines().map(l => l.length + 2)));
+
   const popupHeight = () => visibleCompletions().length + 2;
   const popupY = () => {
     const yBelow = visualCursorY() + 1;
@@ -184,13 +188,17 @@ export const VimUI: Component<VimUIProps> = (props) => {
       {/* Hover Info */}
       <Show when={hoverText()}>
         <tui-box
-          x={Math.min(hoverPos().x, width() - 40)}
-          y={Math.max(0, hoverPos().y - 3)}
-          width={40}
-          height={3}
+          x={Math.min(hoverPos().x, width() - hoverWidth())}
+          y={Math.max(0, hoverPos().y - hoverHeight())}
+          width={hoverWidth()}
+          height={hoverHeight()}
           border={true}
         >
-          <tui-text x={0} y={0} content={hoverText() || ''} />
+          <For each={hoverLines()}>
+            {(line, i) => (
+              <tui-text x={0} y={i()} content={line} />
+            )}
+          </For>
         </tui-box>
       </Show>
     </tui-box>
