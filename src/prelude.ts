@@ -228,16 +228,101 @@ export default {
 
       const updateLints = async () => {
         if (!currentPath) return;
-        lints = await worker.getLints(currentPath);
+        const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
+        lints = await worker.getLints(absolutePath);
       };
 
-          api.on('BufferLoaded', async (data) => {
-            currentPath = data.path;
-            if (currentPath.endsWith('.ts') || currentPath.endsWith('.tsx')) {
-              await worker.updateFile(currentPath, data.content);
-              await updateLints();
+      let isSyncing = false;
+      const syncFileSystem = async () => {
+        if (isSyncing) {
+          api.log('TS-LSP: Sync already in progress...');
+          return;
+        }
+        isSyncing = true;
+        api.log('TS-LSP: Syncing file system...');
+        const fs = api.getFS();
+        let count = 0;
+        const CONCURRENCY_LIMIT = 5;
+        let activeTasks = 0;
+        const startTime = Date.now();
+
+        const walk = async (path) => {
+          // Skip common large/irrelevant directories
+          if (path.includes('.git') || path.includes('dist') || path.includes('build') || path.includes('.next')) return;
+          
+          try {
+            const entries = await fs.listDirectory(path);
+            for (const entry of entries) {
+              const isDir = entry.endsWith('/');
+              const name = isDir ? entry.slice(0, -1) : entry;
+              const fullPath = path ? (path.endsWith('/') ? path + name : path + '/' + name) : name;
+              
+              if (isDir) {
+                await walk(fullPath);
+              } else {
+                const isTS = fullPath.endsWith('.ts') || fullPath.endsWith('.tsx') || fullPath.endsWith('.d.ts');
+                const isJS = fullPath.endsWith('.js') || fullPath.endsWith('.jsx');
+                const isConfig = fullPath.endsWith('package.json') || fullPath.endsWith('tsconfig.json');
+                
+                if (isTS || isJS || isConfig) {
+                  while (activeTasks >= CONCURRENCY_LIMIT) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                  }
+                  activeTasks++;
+                  (async () => {
+                    try {
+                      const content = await fs.readFile(fullPath);
+                      if (content !== null) {
+                        const absolutePath = fullPath.startsWith('/') ? fullPath : '/' + fullPath;
+                        await worker.updateFile(absolutePath, content);
+                        count++;
+                        if (count % 50 === 0) api.log(\`TS-LSP: Indexed \${count} files...\`);
+                      }
+                    } catch (e) {
+                    } finally {
+                      activeTasks--;
+                    }
+                  })();
+                }
+              }
             }
-          });
+          } catch (e) {
+            api.log('TS-LSP: Walk error at ' + path + ': ' + e.message);
+          }
+        };
+
+        try {
+          await walk('');
+          while (activeTasks > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+          api.log(\`TS-LSP: Sync complete. Indexed \${count} files in \${duration}s.\`);
+        } catch (err) {
+          api.log('TS-LSP: Sync failed: ' + err.message);
+        } finally {
+          isSyncing = false;
+        }
+      };
+
+      // Initial sync and sync on FS change
+      syncFileSystem();
+      api.on('FSChanged', () => {
+        syncFileSystem();
+      });
+
+      api.on('BufferLoaded', async (data) => {
+        currentPath = data.path;
+        if (currentPath.endsWith('.ts') || currentPath.endsWith('.tsx')) {
+          const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
+          await worker.updateFile(absolutePath, data.content);
+          await updateLints();
+        }
+      });
+      
+      api.registerCommand('TSSync', () => {
+        syncFileSystem();
+      });
       
       let debounceTimer = null;
 
@@ -251,7 +336,8 @@ export default {
         }
         pos += cursor.x;
         
-        const completions = await worker.getCompletions(currentPath, pos);
+        const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
+        const completions = await worker.getCompletions(absolutePath, pos);
         if (completions && completions.length > 0) {
           api.showCompletions(completions, (item) => {
             const currentBuffer = api.getBuffer();
@@ -278,7 +364,8 @@ export default {
         debounceTimer = setTimeout(async () => {
           const buffer = api.getBuffer().join('\\n');
           if (currentPath && (currentPath.endsWith('.ts') || currentPath.endsWith('.tsx'))) {
-            await worker.updateFile(currentPath, buffer);
+            const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
+            await worker.updateFile(absolutePath, buffer);
             await updateLints();
             
             if (api.getMode() === 'Insert') {
@@ -324,7 +411,8 @@ export default {
         }
         pos += cursor.x;
         
-        const hover = await worker.getHover(currentPath, pos);
+        const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
+        const hover = await worker.getHover(absolutePath, pos);
         if (hover) {
           api.showHover(hover.display, cursor.x, cursor.y);
           setTimeout(() => api.hideHover(), 3000);

@@ -11,7 +11,7 @@ export const TYPES_VERSION = '1.0.0';
 
 export type VimMode = 'Normal' | 'Insert' | 'Command';
 
-export type VimEvent = 'ModeChanged' | 'CursorMoved' | 'TextChanged' | 'BufferLoaded' | 'FileChanged' | 'FileDeleted' | 'KeyDown';
+export type VimEvent = 'ModeChanged' | 'CursorMoved' | 'TextChanged' | 'BufferLoaded' | 'FileChanged' | 'FileDeleted' | 'KeyDown' | 'FSChanged';
 
 export interface CompletionItem {
   label: string;
