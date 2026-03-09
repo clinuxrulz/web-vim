@@ -196,7 +196,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
         >
           <For each={hoverLines()}>
             {(line, i) => (
-              <tui-text x={0} y={i()} content={line} />
+              <tui-text x={1} y={i() + 1} content={line} />
             )}
           </For>
         </tui-box>
