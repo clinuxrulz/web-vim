@@ -2,8 +2,8 @@
 // @ts-nocheck
 import * as Comlink from "https://esm.sh/comlink@4.4.1";
 
-let ts: any = null;
-let vfs: any = null;
+let ts = null;
+let vfs = null;
 
 async function ensureTs() {
   if (!ts) {
@@ -23,13 +23,13 @@ async function ensureTs() {
             fsMap.set("/" + lib, text);
             console.log("TS-LSP Worker: Loaded " + lib);
           }
-        } catch (e: any) {
+        } catch (e) {
           console.warn("TS-LSP Worker: Failed to load " + lib, e);
         }
       }));
       
       console.log("TS-LSP Worker: All dependencies loaded");
-    } catch (e: any) {
+    } catch (e) {
       console.error("TS-LSP Worker: Import failed!", e);
       throw e;
     }
@@ -40,7 +40,7 @@ async function ensureTs() {
 const fsMap = new Map();
 
 const worker = {
-  env: null as any,
+  env: null,
   async ping() {
     return "pong";
   },
@@ -63,13 +63,13 @@ const worker = {
       console.log("TS-LSP Worker: Creating environment with root files:", rootFiles);
       this.env = vfsInstance.createVirtualTypeScriptEnvironment(system, rootFiles, tsInstance, compilerOptions);
       console.log("TS-LSP Worker: Environment created");
-    } catch (e: any) {
+    } catch (e) {
       console.error("TS-LSP Worker: Initialize failed", e);
       throw e;
     }
   },
 
-  updateFile(path: string, content: string) {
+  updateFile(path, content) {
     if (!this.env) return;
     if (this.env.getSourceFile(path)) {
       this.env.updateFile(path, content);
@@ -78,11 +78,11 @@ const worker = {
     }
   },
 
-  getLints(path: string) {
+  getLints(path) {
     if (!this.env) return [];
     const syntatic = this.env.languageService.getSyntacticDiagnostics(path);
     const semantic = this.env.languageService.getSemanticDiagnostics(path);
-    return [...syntatic, ...semantic].map((d: any) => ({
+    return [...syntatic, ...semantic].map((d) => ({
       from: d.start,
       to: (d.start || 0) + (d.length || 0),
       message: typeof d.messageText === 'string' ? d.messageText : d.messageText.messageText,
@@ -90,17 +90,17 @@ const worker = {
     }));
   },
 
-  getCompletions(path: string, pos: number) {
+  getCompletions(path, pos) {
     if (!this.env) return null;
     const info = this.env.languageService.getCompletionsAtPosition(path, pos, {});
     if (!info) return null;
-    return info.entries.map((entry: any) => ({
+    return info.entries.map((entry) => ({
       label: entry.name,
       kind: entry.kind,
     }));
   },
 
-  getHover(path: string, pos: number) {
+  getHover(path, pos) {
     if (!this.env) return null;
     const info = this.env.languageService.getQuickInfoAtPosition(path, pos);
     if (!info) return null;
