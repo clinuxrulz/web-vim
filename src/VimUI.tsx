@@ -1,4 +1,4 @@
-import { For, Show, type Component, createEffect } from 'solid-js';
+import { For, Show, type Component, createEffect, Index } from 'solid-js';
 import type { VimMode, GutterOptions, LineRendererOptions } from './types';
 
 interface VimUIProps {
@@ -108,11 +108,11 @@ export const VimUI: Component<VimUIProps> = (props) => {
   return (
     <tui-box x={0} y={0} width={width()} height={height()} border={false}>
       {/* Gutters & Buffer View */}
-      <For each={visibleLines()}>
-        {(line: string, i: () => number) => {
-          const absoluteLineIndex = () => topLine() + i();
+      <Index each={visibleLines()}>
+        {(line: () => string, i: number) => {
+          const absoluteLineIndex = () => topLine() + i;
           return (
-            <tui-box x={0} y={i()} width={width()} height={1}>
+            <tui-box x={0} y={i} width={width()} height={1}>
               <For each={gutters()}>
                 {(gutter: GutterOptions, index: () => number) => {
                   const x = () => gutters().slice(0, index()).reduce((acc, g) => acc + g.width, 0);
@@ -120,7 +120,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
                     <tui-box x={x()} y={0} width={gutter.width} height={1}>
                       {gutter.render({ 
                         lineIndex: absoluteLineIndex(), 
-                        lineContent: line, 
+                        lineContent: line(), 
                         isCursorLine: cursor().y === absoluteLineIndex() 
                       })}
                     </tui-box>
@@ -129,12 +129,12 @@ export const VimUI: Component<VimUIProps> = (props) => {
               </For>
               <Show 
                 when={lineRenderer()} 
-                fallback={<tui-text x={totalGutterWidth()} y={0} content={line.slice(leftCol(), leftCol() + viewportWidth())} />}
+                fallback={<tui-text x={totalGutterWidth()} y={0} content={line().slice(leftCol(), leftCol() + viewportWidth())} />}
               >
                 <tui-box x={totalGutterWidth()} y={0} width={viewportWidth()} height={1}>
                   {() => lineRenderer()?.render({
                     lineIndex: absoluteLineIndex,
-                    lineContent: line,
+                    lineContent: line(),
                     isCursorLine: () => cursor().y === absoluteLineIndex(),
                     gutterWidth: totalGutterWidth,
                     leftCol: leftCol,
@@ -145,7 +145,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
             </tui-box>
           );
         }}
-      </For>
+      </Index>
 
       {/* Status Line */}
       <tui-box x={0} y={statusLineY()} width={width()} height={1} border={false}>
