@@ -39,6 +39,48 @@ export default {
       const indexedPackages = new Set<string>();
       const indexedFiles = new Set<string>();
       const failedLookups = new Set<string>();
+      const classificationsMap = new Map<string, any>();
+
+      const updateClassifications = async () => {
+        if (!currentPath || !(currentPath.endsWith('.ts') || currentPath.endsWith('.tsx'))) return;
+        const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
+        const buffer = api.getBuffer().join('\n');
+        try {
+          const classifications = await worker.getClassifications(absolutePath, 0, buffer.length);
+          if (classifications) {
+            classificationsMap.set(absolutePath, classifications);
+          }
+        } catch (e) {
+          api.log('TS-LSP: Error updating classifications: ' + e.message);
+        }
+      };
+
+      const getColorForClassification = (type: number) => {
+        switch (type) {
+          case 1: return '#6a9955'; // comment
+          case 3: return '#569cd6'; // keyword
+          case 4: return '#b5cea8'; // numericLiteral
+          case 6: return '#ce9178'; // stringLiteral
+          case 7: return '#d16969'; // regularExpressionLiteral
+          case 10: return '#d4d4d4'; // punctuation
+          case 11: // className
+          case 12: // enumName
+          case 13: // interfaceName
+          case 14: // moduleName
+          case 15: // typeParameterName
+          case 16: return '#4ec9b0'; // typeAliasName
+          case 2: // identifier
+          case 17: // parameterName
+          case 22: return '#9cdcfe'; // jsxAttribute
+          case 18: return '#608b4e'; // docCommentTagName
+          case 19: // jsxOpenTagName
+          case 20: // jsxCloseTagName
+          case 21: return '#569cd6'; // jsxSelfClosingTagName
+          case 24: return '#ce9178'; // jsxAttributeStringLiteralValue
+          case 25: return '#b5cea8'; // bigIntLiteral
+          default: return '#ffffff';
+        }
+      };
 
       // Global semaphore for all indexing tasks
       let activeFetches = 0;
@@ -423,6 +465,7 @@ export default {
           await worker.updateFile(absolutePath, data.content);
           await resolveImports(absolutePath, data.content);
           await updateLints();
+          await updateClassifications();
         }
       });
       
@@ -474,6 +517,7 @@ export default {
             await worker.updateFile(absolutePath, buffer);
             await resolveImports(absolutePath, buffer);
             await updateLints();
+            await updateClassifications();
             
             if (api.getMode() === 'Insert') {
               const cursor = api.getCursor();
@@ -528,31 +572,93 @@ export default {
           const content = typeof lineContent === 'function' ? lineContent() : lineContent;
           const startCol = typeof leftCol === 'function' ? leftCol() : leftCol;
           const width = typeof viewportWidth === 'function' ? viewportWidth() : viewportWidth;
-          
+          const idx = typeof lineIndex === 'function' ? lineIndex() : lineIndex;
+
           if (!currentPath || !(currentPath.endsWith('.ts') || currentPath.endsWith('.tsx'))) {
             return <tui-text content={content.slice(startCol, startCol + width)} />;
           }
-          
-          const keywords = ['import', 'export', 'default', 'const', 'let', 'var', 'function', 'class', 'return', 'if', 'else', 'for', 'while', 'switch', 'case', 'break', 'await', 'async'];
-          const parts = [];
-          const words = content.split(/(\W+)/);
-          let currentX = 0;
-          for (const word of words) {
-            if (word.length > 0) {
-              const wordEnd = currentX + word.length;
-              if (wordEnd > startCol && currentX < startCol + width) {
-                const isKeyword = keywords.includes(word);
-                const renderStart = Math.max(0, startCol - currentX);
-                const renderEnd = Math.min(word.length, startCol + width - currentX);
-                const visibleText = word.slice(renderStart, renderEnd);
-                const visualX = Math.max(0, currentX - startCol);
-                parts.push(<tui-text x={visualX} y={0} content={visibleText} color={isKeyword ? '#569cd6' : '#ffffff'} />);
+
+          const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
+          const classifications = classificationsMap.get(absolutePath);
+          if (!classifications) {
+            return <tui-text content={content.slice(startCol, startCol + width)} />;
+          }
+
+          const bufferLines = api.getBuffer();
+          let lineStartOffset = 0;
+          for (let i = 0; i < idx; i++) {
+            lineStartOffset += (bufferLines[i]?.length || 0) + 1;
+          }
+          const lineEndOffset = lineStartOffset + content.length;
+
+          const relevantSpans: any[] = [];
+          const { syntactic, semantic } = classifications;
+
+          const addSpans = (spans: number[], isSemantic: boolean) => {
+            if (!spans) return;
+            for (let i = 0; i < spans.length; i += 3) {
+              const start = spans[i];
+              const length = spans[i + 1];
+              const type = spans[i + 2];
+              if (start + length > lineStartOffset && start < lineEndOffset) {
+                relevantSpans.push({ start, length, type, isSemantic });
               }
-              currentX += word.length;
+            }
+          };
+
+          addSpans(syntactic, false);
+          addSpans(semantic, true);
+
+          // Sort by start position, then by length (longer first), then semantic first
+          relevantSpans.sort((a, b) => a.start - b.start || b.length - a.length || (a.isSemantic ? -1 : 1));
+
+          const tokens = [];
+          let currentPos = lineStartOffset;
+          const visibleEndCol = startCol + width;
+
+          for (const span of relevantSpans) {
+            if (span.start < currentPos) continue;
+
+            // Fill gap
+            if (span.start > currentPos) {
+              const gapStart = Math.max(startCol, currentPos - lineStartOffset);
+              const gapEnd = Math.min(visibleEndCol, span.start - lineStartOffset);
+              if (gapEnd > gapStart) {
+                tokens.push({
+                  x: gapStart - startCol,
+                  content: content.slice(gapStart, gapEnd),
+                  color: '#ffffff'
+                });
+              }
+            }
+
+            // Add span
+            const spanStart = Math.max(startCol, span.start - lineStartOffset);
+            const spanEnd = Math.min(visibleEndCol, span.start + span.length - lineStartOffset);
+            if (spanEnd > spanStart) {
+              tokens.push({
+                x: spanStart - startCol,
+                content: content.slice(spanStart, spanEnd),
+                color: getColorForClassification(span.type)
+              });
+            }
+            currentPos = span.start + span.length;
+          }
+
+          // Fill remaining
+          if (currentPos < lineEndOffset) {
+            const gapStart = Math.max(startCol, currentPos - lineStartOffset);
+            const gapEnd = Math.min(visibleEndCol, content.length);
+            if (gapEnd > gapStart) {
+              tokens.push({
+                x: gapStart - startCol,
+                content: content.slice(gapStart, gapEnd),
+                color: '#ffffff'
+              });
             }
           }
-          
-          return parts;
+
+          return tokens.map(t => <tui-text x={t.x} y={0} content={t.content} color={t.color} />);
         }
       });
     } catch (err: any) {

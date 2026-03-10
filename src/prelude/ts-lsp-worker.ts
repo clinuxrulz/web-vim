@@ -144,6 +144,21 @@ const worker = {
       display,
       range: { start: info.textSpan.start, length: info.textSpan.length }
     };
+  },
+
+  getClassifications(path, start, length) {
+    if (!this.env) return null;
+    try {
+      const syntactic = this.env.languageService.getEncodedSyntacticClassifications(path, { start, length });
+      const semantic = this.env.languageService.getEncodedSemanticClassifications(path, { start, length });
+      return {
+        syntactic: Array.from(syntactic.spans),
+        semantic: Array.from(semantic.spans)
+      };
+    } catch (e) {
+      console.error("TS-LSP Worker: getClassifications failed", e);
+      return null;
+    }
   }
 };
 
