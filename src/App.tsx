@@ -593,6 +593,12 @@ export default {
 
   const handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
+    
+    // Check if the interaction is over the editor canvas (containerRef)
+    if (!containerRef || !containerRef.contains(e.target as Node)) {
+      return;
+    }
+
     const state = vimState();
     if (state.contextMenuItems && state.contextMenuItems.length > 0) {
       setContextMenu({
