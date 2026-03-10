@@ -558,7 +558,10 @@ export default {
     }
   });
 
+  let lastPointerDownTime = 0;
+
   const handlePointerDown = (e: PointerEvent) => {
+    lastPointerDownTime = Date.now();
     // Close context menu if open
     if (contextMenu()) {
       setContextMenu(null);
@@ -582,8 +585,11 @@ export default {
         vimInstance.setCursor(col - totalGutterWidth + vimState().leftCol, row + vimState().topLine);
       }
     }
+  };
 
-    if (isMobile()) {
+  const handlePointerUp = (e: PointerEvent) => {
+    const duration = Date.now() - lastPointerDownTime;
+    if (isMobile() && duration < 300) {
       if (!showKeyboard()) {
         setShowKeyboard(true);
         window.history.pushState({ keyboard: true }, '');
@@ -625,6 +631,7 @@ export default {
         overflow: 'hidden'
       }}
       onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
       onContextMenu={handleContextMenu}
     >
       <div 
