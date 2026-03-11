@@ -91,7 +91,7 @@ export default {
 };
 `;
 
-export default function VimEditor(props: { ref?: (engine: VimEngine) => void }) {
+export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: VimEngine) => void }) {
   const [gridDim, setGridDim] = createSignal({ width: 80, height: 24 });
   const [isMobile, setIsMobile] = createSignal(false);
   const [showKeyboard, setShowKeyboard] = createSignal(false);
@@ -132,7 +132,7 @@ export default function VimEditor(props: { ref?: (engine: VimEngine) => void }) 
 
   let containerRef: HTMLDivElement | undefined;
   let rustEngine: Engine | null = null;
-  let vimInstance: VimEngine | null = null;
+  let vimInstance: VimEngine | null = props.engine || null;
 
   // Variables for touch interaction (pinch-to-zoom and scrolling)
   let initialPinchDistance = 0;
@@ -200,13 +200,21 @@ export default {
     try {
       await init();
       
-      const vim = new VimEngine(() => {
-        setVimState(vim.getState());
-      });
-      vimInstance = vim;
+      const onUpdate = () => {
+        if (vimInstance) {
+          setVimState(vimInstance.getState());
+        }
+      };
+
+      if (props.engine) {
+        vimInstance = props.engine;
+        vimInstance.setUpdateCallback(onUpdate);
+      } else {
+        vimInstance = new VimEngine(onUpdate);
+      }
       
       if (props.ref) {
-        props.ref(vim);
+        props.ref(vimInstance);
       }
       
       // Initialize Engine after WASM init
@@ -214,9 +222,9 @@ export default {
 
       // Initial sizing
       updateDimensions();
-      const initialGutterWidth = vim.getState().gutters.reduce((acc: number, g: any) => acc + g.width, 0);
-      vim.setViewportHeight(gridDim().height - 2);
-      vim.setViewportWidth(gridDim().width - initialGutterWidth);
+      const initialGutterWidth = vimInstance.getState().gutters.reduce((acc: number, g: any) => acc + g.width, 0);
+      vimInstance.setViewportHeight(gridDim().height - 2);
+      vimInstance.setViewportWidth(gridDim().width - initialGutterWidth);
 
       // Visual Viewport tracking for mobile keyboard
       const updateViewport = () => {
@@ -241,7 +249,7 @@ export default {
       try {
         let initSource = await getConfigFile(CONFIG_PATH);
         if (initSource) {
-           await vim.loadPluginFromSource("init.ts", initSource);
+           await vimInstance.loadPluginFromSource("init.ts", initSource);
         } else {
            console.log("No init.ts found at", CONFIG_PATH);
         }
@@ -250,18 +258,18 @@ export default {
       }
       
       // Register CRT toggle command
-      vim.getAPI().registerCommand('crt', () => {
+      vimInstance.getAPI().registerCommand('crt', () => {
         setCrtEnabled(!crtEnabled());
       });
 
       // Command to create a default init.ts if missing
-      vim.getAPI().registerCommand('create-init', async () => {
+      vimInstance.getAPI().registerCommand('create-init', async () => {
         await writeConfigFile(CONFIG_PATH, DEFAULT_INIT);
         console.log("Created default init.ts in OPFS at", CONFIG_PATH);
       });
 
 
-      setVimState(vim.getState());
+      setVimState(vimInstance.getState());
 
       // Shared key handler
       const processKey = (key: string, ctrl: boolean = false) => {
@@ -281,7 +289,9 @@ export default {
           'enter': 'Enter'
         };
         const mappedKey = keyMap[key] || key;
-        vim.handleKey(mappedKey, ctrl);
+        if (vimInstance) {
+          vimInstance.handleKey(mappedKey, ctrl);
+        }
       };
       (window as any).processKey = processKey;
 

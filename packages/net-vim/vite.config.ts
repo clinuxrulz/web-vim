@@ -41,13 +41,7 @@ export default defineConfig({
       formats: ['es']
     },
     rollupOptions: {
-      external: ['solid-js', 'solid-js/web', 'virtual-keyboard'],
       output: {
-        globals: {
-          'solid-js': 'Solid',
-          'solid-js/web': 'SolidWeb',
-          'virtual-keyboard': 'VirtualKeyboard'
-        }
       }
     }
   },

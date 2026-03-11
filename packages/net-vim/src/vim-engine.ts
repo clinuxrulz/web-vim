@@ -40,6 +40,11 @@ export class VimEngine {
     this.pluginManager = new PluginManager(() => this.getAPI());
   }
 
+  public setUpdateCallback(onUpdate: () => void) {
+    this.onUpdate = onUpdate;
+    this.onUpdate(); // Trigger immediately
+  }
+
   private registerBuiltinCommands() {
     this.commands['q'] = () => {
       console.log('Quitting...');
