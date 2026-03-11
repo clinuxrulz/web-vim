@@ -1,5 +1,5 @@
 {
-  "name": "@web-vim/core",
+  "name": "@net-vim/core",
   "version": "0.1.0",
   "type": "module",
   "files": [

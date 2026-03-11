@@ -1,4 +1,4 @@
-import { VimEditor } from '@web-vim/core';
+import { VimEditor } from '@net-vim/core';
 import { onMount, createSignal } from 'solid-js';
 
 export default function App() {

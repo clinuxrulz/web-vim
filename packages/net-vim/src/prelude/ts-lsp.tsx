@@ -3,7 +3,7 @@
 export default {
   metadata: {
     name: 'ts-lsp',
-    description: 'TypeScript LSP for Web-Vim'
+    description: 'TypeScript LSP for Net-Vim'
   },
   setup: async (api: any) => {
     try {
@@ -11,7 +11,7 @@ export default {
       const Comlink = await import("https://esm.sh/comlink@4.4.1");
       api.log('TS-LSP: Comlink loaded. Loading worker source...');
       
-      const workerSource = await api.configFs.readFile(".config/web-vim/prelude/ts-lsp-worker.ts");
+      const workerSource = await api.configFs.readFile(".config/net-vim/prelude/ts-lsp-worker.ts");
       if (!workerSource) {
         api.log("TS-LSP Error: Could not find worker source");
         return;

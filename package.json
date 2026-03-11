@@ -1,5 +1,5 @@
 {
-  "name": "web-vim",
+  "name": "net-vim",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -15,7 +15,7 @@
   "dependencies": {
     "solid-js": "^1.9.11",
     "virtual-keyboard": "workspace:*",
-    "@web-vim/core": "workspace:*"
+    "@net-vim/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.11.0",

@@ -9,7 +9,7 @@ import { VirtualKeyboard } from 'virtual-keyboard';
 // @ts-ignore
 import init, { Engine } from '../../../crates/tui-engine/pkg/tui_engine';
 
-const CONFIG_PATH = '.config/web-vim/init.ts';
+const CONFIG_PATH = '.config/net-vim/init.ts';
 
 const DEFAULT_INIT = `
 export default {
@@ -21,27 +21,27 @@ export default {
     api.log("Custom init.ts loaded from OPFS!");
     
     // Load built-in plugins from the virtual prelude if desired:
-    const lineNumbers = await api.configFs.readFile(".config/web-vim/prelude/line-numbers.tsx");
+    const lineNumbers = await api.configFs.readFile(".config/net-vim/prelude/line-numbers.tsx");
     if (lineNumbers) {
       await api.loadPluginFromSource("line-numbers", lineNumbers);
     }
     
-    const contextMenu = await api.configFs.readFile(".config/web-vim/prelude/context-menu.tsx");
+    const contextMenu = await api.configFs.readFile(".config/net-vim/prelude/context-menu.tsx");
     if (contextMenu) {
       await api.loadPluginFromSource("context-menu", contextMenu);
     }
 
-    const tsLsp = await api.configFs.readFile(".config/web-vim/prelude/ts-lsp.tsx");
+    const tsLsp = await api.configFs.readFile(".config/net-vim/prelude/ts-lsp.tsx");
     if (tsLsp) {
       await api.loadPluginFromSource("ts-lsp", tsLsp);
     }
 
-    const externalFs = await api.configFs.readFile(".config/web-vim/prelude/external-fs.tsx");
+    const externalFs = await api.configFs.readFile(".config/net-vim/prelude/external-fs.tsx");
     if (externalFs) {
       await api.loadPluginFromSource("external-fs", externalFs);
     }
 
-    const eruda = await api.configFs.readFile(".config/web-vim/prelude/eruda.tsx");
+    const eruda = await api.configFs.readFile(".config/net-vim/prelude/eruda.tsx");
     if (eruda) {
       await api.loadPluginFromSource("eruda", eruda);
     }

@@ -40,7 +40,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "universal": "/packages/web-vim/src/solid-universal-tui/index.ts"
+      "universal": "/packages/net-vim/src/solid-universal-tui/index.ts"
     }
   }
 });

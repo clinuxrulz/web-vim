@@ -165,7 +165,7 @@ async fn main() {
     println!("Bridge server running on http://{}", addr);
     println!("Root Directory: {}", root_dir.display());
     println!("Bridge Security Key: {}", key);
-    println!("\nTo connect from Web-Vim, use command:");
+    println!("\nTo connect from Net-Vim, use command:");
     println!(":ed bridge {} {}", port, key);
     println!("====================================================\n");
     

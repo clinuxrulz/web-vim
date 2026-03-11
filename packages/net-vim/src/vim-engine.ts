@@ -3,7 +3,7 @@ import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem, FileSyst
 import { opfsFS, PRELUDE_BASE } from './opfs-util';
 
 export class VimEngine {
-  private buffer: string[] = ['Welcome to Web-Vim!', 'Press i to insert text', 'Press Esc to return to Normal mode', 'Type :q to quit'];
+  private buffer: string[] = ['Welcome to Net-Vim!', 'Press i to insert text', 'Press Esc to return to Normal mode', 'Type :q to quit'];
   private cursor = { x: 0, y: 0 };
   private visualStart: { x: number; y: number } | null = null;
   private topLine = 0;

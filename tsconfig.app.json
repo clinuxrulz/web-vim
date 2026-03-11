@@ -26,9 +26,9 @@
     "noUncheckedSideEffectImports": true,
     "composite": true,
     "paths": {
-      "@web-vim/core": ["./packages/web-vim/src/index.tsx"],
-      "@web-vim/core/*": ["./packages/web-vim/src/*"]
+      "@net-vim/core": ["./packages/net-vim/src/index.tsx"],
+      "@net-vim/core/*": ["./packages/net-vim/src/*"]
     }
   },
-  "include": ["src", "packages/web-vim/src"]
+  "include": ["src", "packages/net-vim/src"]
 }

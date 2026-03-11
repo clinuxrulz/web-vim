@@ -2,7 +2,7 @@
 export default {
   metadata: {
     name: "line-numbers",
-    author: "Web-Vim Team",
+    author: "Net-Vim Team",
     version: "1.0.0",
     description: "Provides line numbers in the gutter"
   },

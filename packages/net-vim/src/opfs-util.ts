@@ -4,7 +4,7 @@ import { PRELUDE_PLUGINS } from './prelude';
  * Simple utility to interact with the Origin Private File System (OPFS)
  */
 
-export const PRELUDE_BASE = '.config/web-vim/prelude';
+export const PRELUDE_BASE = '.config/net-vim/prelude';
 
 export const opfsFS = {
   readFile: getConfigFile,
@@ -92,8 +92,8 @@ export async function listDirectory(path: string): Promise<string[]> {
       entries.push(handle.kind === 'directory' ? `${name}/` : name);
     }
 
-    // If we're listing .config/web-vim, manually add prelude/
-    if (path === '.config/web-vim' || path === '.config/web-vim/') {
+    // If we're listing .config/net-vim, manually add prelude/
+    if (path === '.config/net-vim' || path === '.config/net-vim/') {
       if (!entries.includes('prelude/')) {
         entries.push('prelude/');
       }
