@@ -1,8 +1,13 @@
-/* @refresh reload */
-import { render } from 'solid-js/web'
-import './index.css'
-import App from './App.tsx'
+import { render } from 'solid-js/web';
+import VirtualKeyboard, { type VirtualKeyboardProps } from './App';
 
-const root = document.getElementById('root')
+export { default as VirtualKeyboard } from './App';
+export type { VirtualKeyboardProps, KeyboardMode } from './App';
 
-render(() => <App />, root!)
+export function initVirtualKeyboard(container: HTMLElement, props: VirtualKeyboardProps = {}) {
+  const dispose = render(() => <VirtualKeyboard {...props} />, container);
+  
+  return {
+    dispose
+  };
+}

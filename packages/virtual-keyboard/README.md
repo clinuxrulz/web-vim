@@ -1,26 +1,55 @@
-# Virtual Keyboard
+# @net-vim/virtual-keyboard
 
-[![npm version](https://img.shields.io/npm/v/@net-vim/core.svg)](https://www.npmjs.com/package/@net-vim/core)
+[![npm version](https://img.shields.io/npm/v/@net-vim/virtual-keyboard.svg)](https://www.npmjs.com/package/@net-vim/virtual-keyboard)
 
-Virtual keyboard component for web applications, specifically designed for mobile terminal-like experiences.
+A framework-agnostic virtual keyboard component for web applications, designed for mobile terminal-like experiences.
 
-## Available Scripts
+## Installation
 
-In the project directory, you can run:
+```bash
+npm install @net-vim/virtual-keyboard
+```
 
-### `npm run dev`
+## Usage
 
-Runs the app in the development mode.<br>
-Open [http://localhost:5173](http://localhost:5173) to view it in the browser.
+### Framework-Agnostic Initialization
 
-### `npm run build`
+You can initialize the virtual keyboard into any HTML element without requiring a specific frontend framework.
 
-Builds the app for production to the `dist` folder.<br>
-It correctly bundles Solid in production mode and optimizes the build for the best performance.
+```javascript
+import { initVirtualKeyboard } from '@net-vim/virtual-keyboard';
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+const container = document.getElementById('keyboard-container');
+const { dispose } = initVirtualKeyboard(container, {
+  onKeyPress: (key, mods) => {
+    console.log('Key pressed:', key, 'Mods:', mods);
+  }
+});
 
-## Deployment
+// To remove the keyboard later
+// dispose();
+```
 
-Learn more about deploying your application with the [documentations](https://vite.dev/guide/static-deploy.html)
+### Solid.js Component
+
+For applications using Solid.js, the keyboard is available as a component.
+
+```tsx
+import { VirtualKeyboard } from '@net-vim/virtual-keyboard';
+
+function App() {
+  const handleKeyPress = (key, mods) => {
+    console.log('Key pressed:', key, 'Mods:', mods);
+  };
+
+  return (
+    <div style={{ position: 'fixed', bottom: 0, width: '100%' }}>
+      <VirtualKeyboard onKeyPress={handleKeyPress} />
+    </div>
+  );
+}
+```
+
+## License
+
+MIT

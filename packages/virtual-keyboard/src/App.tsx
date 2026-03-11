@@ -185,7 +185,7 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
     );
   };
 
-  const renderKey = (key: string, rowIndex: number) => {
+  const renderKey = (key: string) => {
     let content: any = key;
     let style: any = {
       background: '#2c2c2c',
@@ -299,7 +299,7 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
             'box-sizing': 'border-box'
           }}>
             <For each={row}>
-              {(key) => renderKey(key, index())}
+              {(key) => renderKey(key)}
             </For>
           </div>
         )}

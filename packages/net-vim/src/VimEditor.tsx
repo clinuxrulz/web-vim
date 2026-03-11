@@ -5,7 +5,7 @@ import { VimEngine } from './vim-engine';
 import { VimUI } from './VimUI';
 import type { VimState } from './types';
 import { getConfigFile, ensureConfigDir, writeConfigFile, PRELUDE_BASE } from './opfs-util';
-import { VirtualKeyboard } from 'virtual-keyboard';
+import { VirtualKeyboard } from '@net-vim/virtual-keyboard';
 // @ts-ignore
 import init, { Engine } from './wasm/tui_engine';
 
