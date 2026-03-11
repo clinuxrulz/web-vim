@@ -213,6 +213,8 @@ export default {
         vimInstance = new VimEngine(onUpdate);
       }
       
+      await vimInstance.init();
+      
       if (props.ref) {
         props.ref(vimInstance);
       }

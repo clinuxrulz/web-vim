@@ -23,6 +23,8 @@ export interface ScopedVimAPI extends VimAPI {
   };
   // UI helpers
   h: typeof h;
+  // Tools
+  babel: any;
 }
 
 export interface PluginMetadata {
@@ -36,8 +38,6 @@ export interface WebVimPlugin {
   metadata: PluginMetadata;
   setup: (api: ScopedVimAPI) => void | Promise<void>;
 }
-
-declare const Babel: any;
 
 export class PluginManager {
   private plugins: Map<string, WebVimPlugin> = new Map();
@@ -55,9 +55,14 @@ export class PluginManager {
     console.log(`[PluginManager] Starting to load plugin: ${name}`);
 
     try {
+      const babel = this.getBaseAPI().babel;
+      if (!babel) {
+        throw new Error(`Babel not found while trying to load plugin ${name}. Make sure VimEngine is initialized.`);
+      }
+
       console.log(`[PluginManager] Transpiling ${name}...`);
       // Transpile TypeScript to JavaScript using Babel Standalone
-      const result = Babel.transform(tsSource, {
+      const result = babel.transform(tsSource, {
         filename: `${name}.tsx`,
         presets: [
           ['typescript', { isTSX: true, allExtensions: true }]

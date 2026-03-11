@@ -1,6 +1,7 @@
 import { PluginManager } from './plugin-manager';
 import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem, FileSystem, ContextMenuItem, VimState, LineRendererOptions } from './types';
 import { opfsFS, PRELUDE_BASE } from './opfs-util';
+import { loadScript } from './utils';
 
 export class VimEngine {
   private buffer: string[] = ['Welcome to Net-Vim!', 'Press i to insert text', 'Press Esc to return to Normal mode', 'Type :q to quit'];
@@ -26,6 +27,7 @@ export class VimEngine {
   private fs: FileSystem = opfsFS;
   private leader = ' '; // Set leader to space as requested
   private pendingSequence = '';
+  private isInitialized = false;
 
   // Completion & Hover State
   private completionItems: CompletionItem[] = [];
@@ -38,6 +40,20 @@ export class VimEngine {
     this.onUpdate = onUpdate;
     this.registerBuiltinCommands();
     this.pluginManager = new PluginManager(() => this.getAPI());
+  }
+
+  public async init() {
+    if (this.isInitialized) return;
+    
+    // Load Babel Standalone
+    try {
+      await loadScript('https://unpkg.com/@babel/standalone/babel.min.js');
+      console.log('[VimEngine] Babel Standalone loaded');
+    } catch (err) {
+      console.error('[VimEngine] Failed to load Babel Standalone:', err);
+    }
+    
+    this.isInitialized = true;
   }
 
   public setUpdateCallback(onUpdate: () => void) {
@@ -223,6 +239,7 @@ export class VimEngine {
       setFS: (fs) => { this.fs = fs; this.trigger('FSChanged'); this.onUpdate(); },
       getFS: () => this.fs,
       resetFS: () => { this.fs = opfsFS; this.trigger('FSChanged'); this.onUpdate(); },
+      babel: (window as any).Babel,
     };
   }
 

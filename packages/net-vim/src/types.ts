@@ -116,4 +116,7 @@ export interface VimAPI {
   setFS: (fs: FileSystem) => void;
   getFS: () => FileSystem;
   resetFS: () => void;
+
+  // Tools
+  babel: any;
 }
