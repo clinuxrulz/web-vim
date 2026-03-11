@@ -186,7 +186,8 @@ export const VimUI: Component<VimUIProps> = (props) => {
                     leftCol: leftCol,
                     viewportWidth: viewportWidth,
                     visualStart: visualStart(),
-                    mode: mode()
+                    mode: mode(),
+                    cursor: cursor()
                   })}
                 </tui-box>
               </Show>

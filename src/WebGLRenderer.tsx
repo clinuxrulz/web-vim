@@ -162,6 +162,8 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
     gl = canvasRef.getContext('webgl2', { alpha: false, antialias: false });
     if (!gl) return;
 
+    startTime = performance.now(); // Initialize startTime here
+
     const createShader = (gl: WebGL2RenderingContext, type: number, source: string) => {
       const shader = gl.createShader(type)!;
       gl.shaderSource(shader, source);
@@ -267,8 +269,9 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
   const updateTextures = () => {
     if (!gl) return;
     
-    gl.bindTexture(gl.TEXTURE_2D, charsTexture);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+
+    gl.bindTexture(gl.TEXTURE_2D, charsTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, props.width, props.height, 0, gl.RED, gl.UNSIGNED_BYTE, props.chars);
 
     gl.bindTexture(gl.TEXTURE_2D, fgsTexture);
@@ -345,7 +348,6 @@ export const WebGLRenderer = (props: WebGLRendererProps & { canvasRef?: (el: HTM
     if (props.onMeasure) {
       props.onMeasure({ width: cellWidth, height: cellHeight });
     }
-    startTime = performance.now(); // Initialize startTime here
     requestRender();
     
     window.addEventListener('resize', requestRender);
