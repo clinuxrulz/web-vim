@@ -1,14 +1,15 @@
 import { defineConfig } from 'vite';
 import solidPlugin from 'vite-plugin-solid';
-import wasm from 'vite-plugin-wasm';
-import topLevelAwait from 'vite-plugin-top-level-await';
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
+import { resolve } from 'path';
+
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const { DOMElements, SVGElements } = require("solid-js/web/dist/dev.cjs");
 
 export default defineConfig({
-  base: "./",
   plugins: [
     solidPlugin({
       solid: {
@@ -32,15 +33,27 @@ export default defineConfig({
     wasm(),
     topLevelAwait()
   ],
-  server: {
-    port: 3000,
-  },
   build: {
-    target: 'esnext',
+    lib: {
+      entry: resolve(__dirname, 'src/index.tsx'),
+      name: 'WebVim',
+      fileName: 'index',
+      formats: ['es']
+    },
+    rollupOptions: {
+      external: ['solid-js', 'solid-js/web', 'virtual-keyboard'],
+      output: {
+        globals: {
+          'solid-js': 'Solid',
+          'solid-js/web': 'SolidWeb',
+          'virtual-keyboard': 'VirtualKeyboard'
+        }
+      }
+    }
   },
   resolve: {
     alias: {
-      "universal": "/packages/web-vim/src/solid-universal-tui/index.ts"
+      "universal": resolve(__dirname, 'src/solid-universal-tui/index.ts')
     }
   }
 });
