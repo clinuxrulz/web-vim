@@ -1,28 +1,60 @@
-## Usage
+# Net-Vim
+
+Net-Vim is a web-based Vim-compatible editor engine and component library. It provides a terminal-like editing experience within web applications using a custom TUI engine and WebGL renderer.
+
+## Features
+
+- Vim-compatible modal editing.
+- Framework-agnostic initialization.
+- WebGL-accelerated rendering.
+- Plugin system with TypeScript support.
+- File system abstraction using OPFS (Origin Private File System).
+- Integrated virtual keyboard for mobile devices.
+
+## Installation
 
 ```bash
-$ npm install # or pnpm install or yarn install
+npm install @net-vim/core
 ```
 
-### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)
+## Usage
 
-## Available Scripts
+### Framework-Agnostic Initialization
 
-In the project directory, you can run:
+The editor can be initialized into any HTML element without requiring a specific frontend framework.
 
-### `npm run dev`
+```javascript
+import { initNetVim } from '@net-vim/core';
 
-Runs the app in the development mode.<br>
-Open [http://localhost:5173](http://localhost:5173) to view it in the browser.
+const container = document.getElementById('editor-container');
+const { vim, dispose } = initNetVim(container);
 
-### `npm run build`
+// Access the Vim API
+vim.getAPI().registerCommand('hello', () => {
+  console.log('Hello from Net-Vim');
+});
+```
 
-Builds the app for production to the `dist` folder.<br>
-It correctly bundles Solid in production mode and optimizes the build for the best performance.
+### Solid.js Component
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+For applications using Solid.js, the editor is available as a component.
 
-## Deployment
+```tsx
+import { VimEditor } from '@net-vim/core';
 
-Learn more about deploying your application with the [documentations](https://vite.dev/guide/static-deploy.html)
+function App() {
+  return (
+    <div style={{ width: '100vw', height: '100vh' }}>
+      <VimEditor ref={(vim) => console.log('Editor initialized')} />
+    </div>
+  );
+}
+```
+
+## Configuration
+
+Net-Vim looks for an initialization script at `.config/net-vim/init.ts` within the OPFS. You can use this to load plugins and configure the editor on startup.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
