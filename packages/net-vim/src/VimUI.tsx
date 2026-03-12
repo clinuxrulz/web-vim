@@ -22,6 +22,7 @@ interface VimUIProps {
   selectedCompletionIndex?: number | (() => number);
   hoverText?: string | null | (() => string | null);
   hoverPos?: { x: number; y: number } | (() => { x: number; y: number });
+  statusMessage?: string | null | (() => string | null);
   onCursorChange?: (cursor: { x: number; y: number }) => void;
 }
 
@@ -47,6 +48,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const selectedCompletionIndex = () => getProp(props.selectedCompletionIndex) || 0;
   const hoverText = () => getProp(props.hoverText);
   const hoverPos = () => getProp(props.hoverPos) || { x: 0, y: 0 };
+  const statusMessage = () => getProp(props.statusMessage);
 
   const statusLineY = () => height() - 2;
   const commandLineY = () => height() - 1;
@@ -205,6 +207,9 @@ export const VimUI: Component<VimUIProps> = (props) => {
       <tui-box x={0} y={commandLineY()} width={width()} height={1} border={false}>
         <Show when={mode() === 'Command'}>
           <tui-text x={0} y={0} content={`:${commandText()}`} />
+        </Show>
+        <Show when={mode() !== 'Command' && statusMessage()}>
+          <tui-text x={0} y={0} content={statusMessage()} />
         </Show>
       </tui-box>
 

@@ -81,6 +81,7 @@ export interface VimState {
   selectedCompletionIndex: number;
   hoverText: string | null;
   hoverPos: { x: number; y: number };
+  statusMessage: string | null;
 }
 
 export interface FileSystem {

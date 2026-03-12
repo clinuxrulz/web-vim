@@ -35,6 +35,8 @@ export class VimEngine {
   private onCompletionSelect: ((item: CompletionItem) => void) | null = null;
   private hoverText: string | null = null;
   private hoverPos = { x: 0, y: 0 };
+  private statusMessage: string | null = null;
+  private messageTimeout: any = null;
 
   constructor(onUpdate: () => void) {
     this.onUpdate = onUpdate;
@@ -317,7 +319,18 @@ export class VimEngine {
       selectedCompletionIndex: this.selectedCompletionIndex,
       hoverText: this.hoverText,
       hoverPos: this.hoverPos,
+      statusMessage: this.statusMessage,
     };
+  }
+
+  private showMessage(msg: string) {
+    this.statusMessage = msg;
+    if (this.messageTimeout) clearTimeout(this.messageTimeout);
+    this.messageTimeout = setTimeout(() => {
+      this.statusMessage = null;
+      this.onUpdate();
+    }, 3000);
+    this.onUpdate();
   }
 
   public handleKey(key: string, _ctrl: boolean = false) {
@@ -467,6 +480,15 @@ export class VimEngine {
       }
     }
 
+    if (this.pendingSequence === 'y') {
+      this.pendingSequence = '';
+      if (key === 'y') {
+        const line = this.buffer[this.cursor.y] || '';
+        this.yankToClipboard(line + '\n');
+        return;
+      }
+    }
+
     if (ctrl) {
       switch (key) {
         case 'w': this.pendingSequence = 'Ctrl-w'; return;
@@ -523,6 +545,7 @@ export class VimEngine {
       case 'k': this.moveCursor('up'); break;
       case "ArrowRight":
       case 'l': this.moveCursor('right'); break;
+      case 'y': this.pendingSequence = 'y'; break;
       case '[': this.pendingSequence = '['; break;
       case ']': this.pendingSequence = ']'; break;
       case 'Home': this.setCursor(0, this.cursor.y); break;
@@ -612,10 +635,50 @@ export class VimEngine {
         this.visualStart = null;
         break;
       case 'y':
-        // Yank not implemented yet
+        const text = this.getSelectionText();
+        this.yankToClipboard(text);
         this.mode = 'Normal';
         this.visualStart = null;
         break;
+    }
+  }
+
+  private async yankToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      const lineCount = text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
+      if (lineCount > 1) {
+        this.showMessage(`${lineCount} lines yanked`);
+      } else {
+        this.showMessage(`Yanked ${text.length} characters`);
+      }
+    } catch (err) {
+      this.showMessage(`Failed to copy to clipboard`);
+      console.error('Failed to copy to clipboard:', err);
+    }
+  }
+
+  private getSelectionText(): string {
+    if (!this.visualStart) return '';
+
+    let start = this.visualStart;
+    let end = this.cursor;
+
+    // Normalize start/end
+    if (start.y > end.y || (start.y === end.y && start.x > end.x)) {
+      [start, end] = [end, start];
+    }
+
+    if (start.y === end.y) {
+      return this.buffer[start.y].slice(start.x, end.x + 1);
+    } else {
+      const selectedLines = [];
+      selectedLines.push(this.buffer[start.y].slice(start.x));
+      for (let i = start.y + 1; i < end.y; i++) {
+        selectedLines.push(this.buffer[i]);
+      }
+      selectedLines.push(this.buffer[end.y].slice(0, end.x + 1));
+      return selectedLines.join('\n');
     }
   }
 

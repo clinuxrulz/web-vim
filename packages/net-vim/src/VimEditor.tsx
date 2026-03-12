@@ -128,6 +128,7 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
     selectedCompletionIndex: 0,
     hoverText: null,
     hoverPos: { x: 0, y: 0 },
+    statusMessage: null,
   });
 
   let containerRef: HTMLDivElement | undefined;
@@ -447,6 +448,7 @@ export default {
           selectedCompletionIndex={() => vimState().selectedCompletionIndex}
           hoverText={() => vimState().hoverText}
           hoverPos={() => vimState().hoverPos}
+          statusMessage={() => vimState().statusMessage}
           width={() => gridDim().width}
           height={() => gridDim().height}
           onCursorChange={(c) => setVisualCursor(c)}
