@@ -489,6 +489,19 @@ export class VimEngine {
       }
     }
 
+    if (this.pendingSequence === 'd') {
+      this.pendingSequence = '';
+      if (key === 'd') {
+        const line = this.buffer[this.cursor.y] || '';
+        this.yankToClipboard(line + '\n');
+        this.buffer.splice(this.cursor.y, 1);
+        if (this.buffer.length === 0) this.buffer = [''];
+        this.setCursor(this.cursor.x, this.cursor.y);
+        this.trigger('TextChanged');
+        return;
+      }
+    }
+
     if (ctrl) {
       switch (key) {
         case 'w': this.pendingSequence = 'Ctrl-w'; return;
@@ -546,6 +559,7 @@ export class VimEngine {
       case "ArrowRight":
       case 'l': this.moveCursor('right'); break;
       case 'y': this.pendingSequence = 'y'; break;
+      case 'd': this.pendingSequence = 'd'; break;
       case '[': this.pendingSequence = '['; break;
       case ']': this.pendingSequence = ']'; break;
       case 'Home': this.setCursor(0, this.cursor.y); break;
@@ -630,6 +644,8 @@ export class VimEngine {
         break;
       case 'd':
       case 'x':
+        const selectedText = this.getSelectionText();
+        this.yankToClipboard(selectedText);
         this.deleteSelection();
         this.mode = 'Normal';
         this.visualStart = null;
