@@ -69,6 +69,7 @@ export interface VimState {
   viewportWidth: number;
   mode: VimMode;
   commandText: string;
+  commandCursorX: number;
   currentFilePath: string | null;
   isExplorer: boolean;
   explorerPath: string;

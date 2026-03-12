@@ -437,6 +437,7 @@ export default {
           leftCol={() => vimState().leftCol}
           mode={() => vimState().mode} 
           commandText={() => vimState().commandText}
+          commandCursorX={() => vimState().commandCursorX}
           currentFilePath={() => vimState().currentFilePath}
           isExplorer={() => vimState().isExplorer}
           explorerPath={() => vimState().explorerPath}

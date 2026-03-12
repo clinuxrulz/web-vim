@@ -9,6 +9,7 @@ interface VimUIProps {
   leftCol?: number | (() => number);
   mode: VimMode | (() => VimMode);
   commandText: string | (() => string);
+  commandCursorX?: number | (() => number);
   width: number | (() => number);
   height: number | (() => number);
   currentFilePath?: string | null | (() => string | null);
@@ -37,6 +38,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const leftCol = () => getProp(props.leftCol) || 0;
   const mode = () => getProp(props.mode) || 'Normal';
   const commandText = () => getProp(props.commandText) || '';
+  const commandCursorX = () => getProp(props.commandCursorX) ?? 0;
   const width = () => getProp(props.width) || 80;
   const height = () => getProp(props.height) || 24;
   const currentFilePath = () => getProp(props.currentFilePath);
@@ -60,6 +62,8 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const viewportWidth = () => width() - totalGutterWidth();
 
   const visualCursorY = () => {
+    if (mode() === 'Command') return commandLineY();
+
     const c = cursor();
     const start = topLine();
     const vWidth = viewportWidth();
@@ -84,6 +88,8 @@ export const VimUI: Component<VimUIProps> = (props) => {
   };
 
   const visualCursorX = () => {
+    if (mode() === 'Command') return commandCursorX() + 1; // +1 for ':'
+
     const c = cursor();
     const vWidth = viewportWidth();
     const gWidth = totalGutterWidth();

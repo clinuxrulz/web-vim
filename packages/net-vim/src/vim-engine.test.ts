@@ -87,6 +87,26 @@ describe('VimEngine', () => {
   it('should enter command mode with :', () => {
     engine.handleKey(':');
     expect(engine.getState().mode).toBe('Command');
+    expect(engine.getState().commandCursorX).toBe(0);
+  });
+
+  it('should support single-line editing in command mode', () => {
+    engine.handleKey(':');
+    engine.handleKey('w');
+    engine.handleKey('q');
+    expect(engine.getState().commandText).toBe('wq');
+    expect(engine.getState().commandCursorX).toBe(2);
+
+    engine.handleKey('ArrowLeft');
+    expect(engine.getState().commandCursorX).toBe(1);
+
+    engine.handleKey('!');
+    expect(engine.getState().commandText).toBe('w!q');
+    expect(engine.getState().commandCursorX).toBe(2);
+
+    engine.handleKey('Backspace');
+    expect(engine.getState().commandText).toBe('wq');
+    expect(engine.getState().commandCursorX).toBe(1);
   });
 
   it('should delete character under cursor with x in Normal mode', () => {

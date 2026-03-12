@@ -13,6 +13,7 @@ export class VimEngine {
   private viewportWidth = 80; // Default, will be updated by UI
   private mode: VimMode = 'Normal';
   private commandText = '';
+  private commandCursorX = 0;
   private currentFilePath: string | null = null;
   private isExplorer = false;
   private explorerPath = '';
@@ -226,7 +227,11 @@ export class VimEngine {
         if (this.isReadOnly && this.mode !== 'Command') return;
         
         if (this.mode === 'Command') {
-          this.commandText += text.replace(/\r?\n/g, ''); // Don't allow newlines in command line
+          const before = this.commandText.slice(0, this.commandCursorX);
+          const after = this.commandText.slice(this.commandCursorX);
+          const insertion = text.replace(/\r?\n/g, '');
+          this.commandText = before + insertion + after;
+          this.commandCursorX += insertion.length;
           this.onUpdate();
           return;
         }
@@ -347,6 +352,7 @@ export class VimEngine {
       viewportWidth: this.viewportWidth,
       mode: this.mode,
       commandText: this.commandText,
+      commandCursorX: this.commandCursorX,
       currentFilePath: this.currentFilePath,
       isExplorer: this.isExplorer,
       explorerPath: this.explorerPath,
@@ -590,7 +596,7 @@ export class VimEngine {
           this.visualStart = { ...this.cursor };
         }
         break;
-      case ':': this.mode = 'Command'; this.commandText = ''; break;
+      case ':': this.mode = 'Command'; this.commandText = ''; this.commandCursorX = 0; break;
       case "ArrowLeft":
       case 'h': this.moveCursor('left'); break;
       case "ArrowDown":
@@ -769,18 +775,40 @@ export class VimEngine {
     if (key === 'Escape') {
       this.mode = 'Normal';
       this.commandText = '';
+      this.commandCursorX = 0;
     } else if (key === 'Enter') {
       this.executeCommand(this.commandText);
       this.mode = 'Normal';
       this.commandText = '';
+      this.commandCursorX = 0;
     } else if (key === 'Backspace') {
-      if (this.commandText.length > 0) {
-        this.commandText = this.commandText.slice(0, -1);
-      } else {
+      if (this.commandCursorX > 0) {
+        const before = this.commandText.slice(0, this.commandCursorX - 1);
+        const after = this.commandText.slice(this.commandCursorX);
+        this.commandText = before + after;
+        this.commandCursorX--;
+      } else if (this.commandText.length === 0) {
         this.mode = 'Normal';
       }
-    } else if (key.length === 1) {
-      this.commandText += key;
+    } else if (key === 'Delete') {
+      if (this.commandCursorX < this.commandText.length) {
+        const before = this.commandText.slice(0, this.commandCursorX);
+        const after = this.commandText.slice(this.commandCursorX + 1);
+        this.commandText = before + after;
+      }
+    } else if (key === 'ArrowLeft') {
+      this.commandCursorX = Math.max(0, this.commandCursorX - 1);
+    } else if (key === 'ArrowRight') {
+      this.commandCursorX = Math.min(this.commandText.length, this.commandCursorX + 1);
+    } else if (key === 'Home') {
+      this.commandCursorX = 0;
+    } else if (key === 'End') {
+      this.commandCursorX = this.commandText.length;
+    } else if (key.length === 1 && !_ctrl) {
+      const before = this.commandText.slice(0, this.commandCursorX);
+      const after = this.commandText.slice(this.commandCursorX);
+      this.commandText = before + key + after;
+      this.commandCursorX++;
     }
   }
 
