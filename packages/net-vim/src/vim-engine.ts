@@ -338,9 +338,9 @@ export class VimEngine {
 
   public getState(): VimState {
     return {
-      buffer: this.buffer,
-      cursor: this.cursor,
-      visualStart: this.visualStart,
+      buffer: [...this.buffer],
+      cursor: { ...this.cursor },
+      visualStart: this.visualStart ? { ...this.visualStart } : null,
       topLine: this.topLine,
       leftCol: this.leftCol,
       viewportHeight: this.viewportHeight,
