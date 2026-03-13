@@ -4,6 +4,8 @@
 
 Net-Vim is a web-based Vim-compatible editor engine and component library. It provides a terminal-like editing experience within web applications using a custom TUI engine and WebGL renderer.
 
+**[Live Demo](https://clinuxrulz.github.io/net-vim/)**
+
 ## Features
 
 - Vim-compatible modal editing.
