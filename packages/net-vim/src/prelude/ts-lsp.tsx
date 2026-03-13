@@ -489,6 +489,42 @@ export default {
       });
       
       let debounceTimer: any = null;
+      let originalCompletions: any[] = [];
+      let completionTriggerPos: { x: number, y: number } | null = null;
+
+      const showFilteredCompletions = () => {
+        if (!completionTriggerPos) return;
+        const cursor = api.getCursor();
+        if (cursor.y !== completionTriggerPos.y || cursor.x < completionTriggerPos.x) {
+          api.hideCompletions();
+          originalCompletions = [];
+          completionTriggerPos = null;
+          return;
+        }
+
+        const line = api.getBuffer()[cursor.y];
+        const filterText = line.slice(completionTriggerPos.x, cursor.x).toLowerCase();
+        
+        const filtered = originalCompletions.filter(item => 
+          item.label.toLowerCase().includes(filterText)
+        );
+
+        if (filtered.length > 0) {
+          api.showCompletions(filtered, (item: any) => {
+            const currentBuffer = api.getBuffer();
+            const currentLine = currentBuffer[cursor.y];
+            const newLine = currentLine.slice(0, completionTriggerPos.x) + item.label + currentLine.slice(cursor.x);
+            currentBuffer[cursor.y] = newLine;
+            api.setBuffer(currentBuffer);
+            api.setCursor(completionTriggerPos.x + item.label.length, cursor.y);
+            
+            originalCompletions = [];
+            completionTriggerPos = null;
+          });
+        } else {
+          api.hideCompletions();
+        }
+      };
 
       const triggerCompletions = async () => {
         if (api.getMode() !== 'Insert') return;
@@ -503,22 +539,24 @@ export default {
         const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
         const completions = await worker.getCompletions(absolutePath, pos);
         if (completions && completions.length > 0) {
-          api.showCompletions(completions, (item: any) => {
-            const currentBuffer = api.getBuffer();
-            const line = currentBuffer[cursor.y];
-            const newLine = line.slice(0, cursor.x) + item.label + line.slice(cursor.x);
-            currentBuffer[cursor.y] = newLine;
-            api.setBuffer(currentBuffer);
-            api.setCursor(cursor.x + item.label.length, cursor.y);
-          });
+          originalCompletions = completions;
+          completionTriggerPos = { ...cursor };
+          showFilteredCompletions();
         } else {
           api.hideCompletions();
+          originalCompletions = [];
+          completionTriggerPos = null;
         }
       };
 
       api.on('KeyDown', async (data: any) => {
         if (data.key === ' ' && data.ctrl) {
           await triggerCompletions();
+        }
+        if (data.key === 'Escape') {
+          originalCompletions = [];
+          completionTriggerPos = null;
+          api.hideCompletions();
         }
       });
 
@@ -540,8 +578,12 @@ export default {
               const line = bufferLines[cursor.y];
               if (line && line[cursor.x - 1] === '.') {
                 await triggerCompletions();
+              } else if (completionTriggerPos) {
+                showFilteredCompletions();
               } else {
                 api.hideCompletions();
+                originalCompletions = [];
+                completionTriggerPos = null;
               }
             }
           }

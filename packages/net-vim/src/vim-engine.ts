@@ -506,9 +506,6 @@ export class VimEngine {
         this.hideCompletions();
         return;
       }
-      if (key === 'Backspace') {
-        this.hideCompletions();
-      }
     }
 
     if (this.isExplorer && this.mode === 'Normal' && key === 'Enter') {
