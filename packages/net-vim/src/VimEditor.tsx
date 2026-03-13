@@ -334,6 +334,22 @@ export default {
 
       const handleWheel = (e: WheelEvent) => {
         if (vimInstance) {
+          if (e.ctrlKey) {
+            // Zooming
+            e.preventDefault();
+            const delta = -e.deltaY;
+            const factor = delta > 0 ? 1.1 : 0.9;
+            
+            const currentSize = charSize();
+            const aspectRatio = currentSize.height / currentSize.width;
+            const newWidth = Math.max(5, Math.min(50, currentSize.width * factor));
+            const newHeight = newWidth * aspectRatio;
+            
+            setCharSize({ width: newWidth, height: newHeight });
+            updateDimensions();
+            return;
+          }
+
           // Normal mode scrolling with wheel
           if (e.deltaY > 0) {
             processKey('e', true); // Scroll down (Ctrl+e)
