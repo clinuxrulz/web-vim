@@ -136,6 +136,7 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
     statusMessage: null,
     commandCursorX: 0,
     wrap: false,
+    lineEnding: 'LF',
   });
 
   let containerRef: HTMLDivElement | undefined;
@@ -474,6 +475,7 @@ export default {
           hoverPos={() => vimState().hoverPos}
           statusMessage={() => vimState().statusMessage}
           wrap={() => vimState().wrap}
+          lineEnding={() => vimState().lineEnding}
           width={() => gridDim().width}
           height={() => gridDim().height}
           onCursorChange={(c) => setVisualCursor(c)}

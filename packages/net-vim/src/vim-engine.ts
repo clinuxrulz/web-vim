@@ -39,6 +39,7 @@ export class VimEngine {
   private statusMessage: string | null = null;
   private messageTimeout: any = null;
   private wrap = true;
+  private lineEnding: 'LF' | 'CRLF' = 'LF';
 
   constructor(onUpdate: () => void) {
     this.onUpdate = onUpdate;
@@ -103,10 +104,11 @@ export class VimEngine {
       }
       
       try {
-        const content = this.buffer.join('\n');
+        const joinStr = this.lineEnding === 'CRLF' ? '\r\n' : '\n';
+        const content = this.buffer.join(joinStr);
         await this.fs.writeFile(targetPath, content);
         this.currentFilePath = targetPath;
-        console.log(`"${targetPath}" saved`);
+        console.log(`"${targetPath}" saved (${this.lineEnding})`);
         this.trigger('FileChanged', { path: targetPath, content });
         this.onUpdate();
       } catch (err) {
@@ -157,7 +159,8 @@ export class VimEngine {
   private async openFile(path: string) {
     const content = await this.fs.readFile(path);
     if (content !== null) {
-      this.buffer = content.split('\n');
+      this.lineEnding = content.includes('\r\n') ? 'CRLF' : 'LF';
+      this.buffer = content.replace(/\r\n/g, '\n').split('\n');
       this.currentFilePath = path;
       this.isExplorer = false;
       this.isReadOnly = path.startsWith(PRELUDE_BASE);
@@ -165,9 +168,10 @@ export class VimEngine {
       this.trigger('TextChanged');
       this.trigger('BufferLoaded', { path, content });
       this.onUpdate();
-      console.log(`Opened "${path}"${this.isReadOnly ? ' [ReadOnly]' : ''}`);
+      console.log(`Opened "${path}"${this.isReadOnly ? ' [ReadOnly]' : ''} (${this.lineEnding})`);
     } else {
       this.buffer = [''];
+      this.lineEnding = 'LF'; // Default for new files
       this.currentFilePath = path;
       this.isExplorer = false;
       this.isReadOnly = false;
@@ -380,6 +384,7 @@ export class VimEngine {
       hoverPos: this.hoverPos,
       statusMessage: this.statusMessage,
       wrap: this.wrap,
+      lineEnding: this.lineEnding,
     };
   }
 

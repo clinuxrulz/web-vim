@@ -25,6 +25,7 @@ interface VimUIProps {
   hoverPos?: { x: number; y: number } | (() => { x: number; y: number });
   statusMessage?: string | null | (() => string | null);
   wrap: boolean | (() => boolean);
+  lineEnding: 'LF' | 'CRLF' | (() => 'LF' | 'CRLF');
   onCursorChange?: (cursor: { x: number; y: number }) => void;
 }
 
@@ -53,6 +54,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const hoverPos = () => getProp(props.hoverPos) || { x: 0, y: 0 };
   const statusMessage = () => getProp(props.statusMessage);
   const wrap = () => getProp(props.wrap);
+  const lineEnding = () => getProp(props.lineEnding);
 
   const statusLineY = () => height() - 2;
   const commandLineY = () => height() - 1;
@@ -313,7 +315,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
 
       {/* Status Line */}
       <tui-box x={0} y={statusLineY()} width={width()} height={1} border={false}>
-        <tui-text x={0} y={0} content={`-- ${mode().toUpperCase()} --   ${fileName()}   ${cursor().y + 1},${cursor().x + 1}`} />
+        <tui-text x={0} y={0} content={`-- ${mode().toUpperCase()} --   ${fileName()} [${lineEnding()}]   ${cursor().y + 1},${cursor().x + 1}`} />
       </tui-box>
 
       {/* Command Line / Message Area */}

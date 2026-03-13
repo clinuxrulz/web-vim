@@ -197,4 +197,44 @@ describe('VimEngine', () => {
       expect(engine.getState().isReadOnly).toBe(true);
     });
   });
+
+  it('should detect and preserve CRLF line endings', async () => {
+    const { autoFS } = await import('./opfs-util');
+    (autoFS.readFile as any).mockResolvedValue('Line 1\r\nLine 2\r\n');
+    
+    // Open a file with CRLF
+    await (engine as any).openFile('test-crlf.txt');
+    
+    expect(engine.getState().lineEnding).toBe('CRLF');
+    expect(engine.getState().buffer).toEqual(['Line 1', 'Line 2', '']);
+    
+    // Save the file
+    engine.handleKey(':');
+    engine.handleKey('w');
+    engine.handleKey('Enter');
+    
+    await vi.waitFor(() => {
+      expect(autoFS.writeFile).toHaveBeenCalledWith('test-crlf.txt', 'Line 1\r\nLine 2\r\n');
+    });
+  });
+
+  it('should detect and preserve LF line endings', async () => {
+    const { autoFS } = await import('./opfs-util');
+    (autoFS.readFile as any).mockResolvedValue('Line 1\nLine 2\n');
+    
+    // Open a file with LF
+    await (engine as any).openFile('test-lf.txt');
+    
+    expect(engine.getState().lineEnding).toBe('LF');
+    expect(engine.getState().buffer).toEqual(['Line 1', 'Line 2', '']);
+    
+    // Save the file
+    engine.handleKey(':');
+    engine.handleKey('w');
+    engine.handleKey('Enter');
+    
+    await vi.waitFor(() => {
+      expect(autoFS.writeFile).toHaveBeenCalledWith('test-lf.txt', 'Line 1\nLine 2\n');
+    });
+  });
 });

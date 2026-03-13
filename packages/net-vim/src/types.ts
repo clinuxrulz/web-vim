@@ -85,6 +85,7 @@ export interface VimState {
   hoverPos: { x: number; y: number };
   statusMessage: string | null;
   wrap: boolean;
+  lineEnding: 'LF' | 'CRLF';
 }
 
 export interface FileSystem {
