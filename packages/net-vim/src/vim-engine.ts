@@ -59,7 +59,7 @@ export class VimEngine {
 
     // Load help file if it's the default buffer
     if (this.buffer.length === 4 && this.buffer[0] === 'Welcome to Net-Vim!') {
-      await this.openFile(PRELUDE_BASE + '/help.txt');
+      await this.openFile(PRELUDE_BASE + '/help.md');
     }
     
     this.isInitialized = true;
@@ -130,7 +130,7 @@ export class VimEngine {
     };
 
     this.commands['help'] = async () => {
-      await this.openFile(PRELUDE_BASE + '/help.txt');
+      await this.openFile(PRELUDE_BASE + '/help.md');
     };
   }
 

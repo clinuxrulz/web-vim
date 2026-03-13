@@ -45,6 +45,11 @@ export default {
     if (eruda) {
       await api.loadPluginFromSource("eruda", eruda);
     }
+
+    const markdownSyntax = await api.configFs.readFile(".config/net-vim/prelude/markdown-syntax.tsx");
+    if (markdownSyntax) {
+      await api.loadPluginFromSource("markdown-syntax", markdownSyntax);
+    }
   }
 };
 `;
