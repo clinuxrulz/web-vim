@@ -1,6 +1,6 @@
 import { PluginManager } from './plugin-manager';
 import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem, FileSystem, ContextMenuItem, VimState, LineRendererOptions } from './types';
-import { opfsFS, PRELUDE_BASE } from './opfs-util';
+import { autoFS, PRELUDE_BASE } from './opfs-util';
 import { loadScript } from './utils';
 
 export class VimEngine {
@@ -25,7 +25,7 @@ export class VimEngine {
   private onUpdate: () => void;
   private eventListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
   private pluginManager: PluginManager;
-  private fs: FileSystem = opfsFS;
+  private fs: FileSystem = autoFS;
   private leader = ' '; // Set leader to space as requested
   private pendingSequence = '';
   private isInitialized = false;
@@ -237,7 +237,7 @@ export class VimEngine {
       rerender: () => this.onUpdate(),
       setFS: (fs) => { this.fs = fs; this.trigger('FSChanged'); this.onUpdate(); },
       getFS: () => this.fs,
-      resetFS: () => { this.fs = opfsFS; this.trigger('FSChanged'); this.onUpdate(); },
+      resetFS: () => { this.fs = autoFS; this.trigger('FSChanged'); this.onUpdate(); },
       babel: (window as any).Babel,
     };
   }

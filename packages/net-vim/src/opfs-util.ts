@@ -2,15 +2,82 @@ import { PRELUDE_PLUGINS } from './prelude';
 
 /**
  * Simple utility to interact with the Origin Private File System (OPFS)
+ * or fallback to a memory-based file system.
  */
 
 export const PRELUDE_BASE = '.config/net-vim/prelude';
+
+// Memory FS Fallback
+const memoryStore = new Map<string, string>();
+
+// Pre-populate memory store with virtual prelude files
+for (const [name, content] of Object.entries(PRELUDE_PLUGINS)) {
+  memoryStore.set(`${PRELUDE_BASE}/${name}`, content);
+}
+
+const memoryFS = {
+  readFile: async (path: string) => memoryStore.get(path) || null,
+  writeFile: async (path: string, content: string) => {
+    if (path.startsWith(PRELUDE_BASE)) throw new Error('Cannot write to read-only virtual prelude path');
+    memoryStore.set(path, content);
+  },
+  listDirectory: async (path: string) => {
+    const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path;
+    const entries = new Set<string>();
+    for (const key of memoryStore.keys()) {
+      if (key.startsWith(cleanPath + '/') || (cleanPath === '' && !key.includes('/'))) {
+        const relative = cleanPath === '' ? key : key.slice(cleanPath.length + 1);
+        const parts = relative.split('/');
+        if (parts.length > 1) entries.add(parts[0] + '/');
+        else entries.add(parts[0]);
+      }
+    }
+    return Array.from(entries).sort();
+  },
+  isDirectory: async (path: string) => {
+    if (path === '' || path === '.' || path === './') return true;
+    const cleanPath = path.endsWith('/') ? path.slice(0, -1) : path;
+    for (const key of memoryStore.keys()) {
+      if (key.startsWith(cleanPath + '/')) return true;
+    }
+    return false;
+  }
+};
+
+let fsImplementation = null;
+
+async function getFS() {
+  if (fsImplementation) return fsImplementation;
+
+  try {
+    // Check if OPFS is available and not restricted
+    const root = await navigator.storage.getDirectory();
+    // Test if we can actually do something (restricted iframes might fail later)
+    await root.getDirectoryHandle('.test-access', { create: true });
+    await root.removeEntry('.test-access');
+    
+    fsImplementation = opfsFS;
+    console.log('[FS] Using OPFS');
+  } catch (e) {
+    console.warn('[FS] OPFS not available or restricted, falling back to MemoryFS', e);
+    fsImplementation = memoryFS;
+  }
+  return fsImplementation;
+}
 
 export const opfsFS = {
   readFile: getConfigFile,
   writeFile: writeConfigFile,
   listDirectory,
   isDirectory,
+};
+
+// Exported wrapper that detects FS on first use
+export const autoFS = {
+  readFile: async (path: string) => (await getFS()).readFile(path),
+  writeFile: async (path: string, content: string) => (await getFS()).writeFile(path, content),
+  listDirectory: async (path: string) => (await getFS()).listDirectory(path),
+  isDirectory: async (path: string) => (await getFS()).isDirectory(path),
 };
 
 export async function getConfigFile(path: string): Promise<string | null> {
