@@ -530,17 +530,30 @@ export default {
         if (api.getMode() !== 'Insert') return;
         const cursor = api.getCursor();
         const bufferLines = api.getBuffer();
+        const line = bufferLines[cursor.y] || "";
+        
+        // Find the start of the word/expression being completed
+        let triggerX = cursor.x;
+        if (line[cursor.x - 1] === '.') {
+          triggerX = cursor.x;
+        } else {
+          // Backtrack to find the start of the current word
+          while (triggerX > 0 && /[a-zA-Z0-9_$]/.test(line[triggerX - 1])) {
+            triggerX--;
+          }
+        }
+
         let pos = 0;
         for (let i = 0; i < cursor.y; i++) {
           pos += bufferLines[i].length + 1;
         }
-        pos += cursor.x;
+        pos += triggerX;
         
         const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
         const completions = await worker.getCompletions(absolutePath, pos);
         if (completions && completions.length > 0) {
           originalCompletions = completions;
-          completionTriggerPos = { ...cursor };
+          completionTriggerPos = { x: triggerX, y: cursor.y };
           showFilteredCompletions();
         } else {
           api.hideCompletions();
