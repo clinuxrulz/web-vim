@@ -15,6 +15,8 @@ export interface ScopedVimAPI extends VimAPI {
   fs: {
     readFile: (path: string) => Promise<string | null>;
     writeFile: (path: string, content: string) => Promise<void>;
+    listDirectory: (path: string) => Promise<string[]>;
+    isDirectory: (path: string) => Promise<boolean>;
   };
   // Configuration access (uses current active FS, typically OPFS or user provided)
   configFs: {
@@ -145,6 +147,8 @@ export class PluginManager {
       fs: {
         readFile: (path: string) => baseApi.getFS().readFile(path),
         writeFile: (path: string, content: string) => baseApi.getFS().writeFile(path, content),
+        listDirectory: (path: string) => baseApi.getFS().listDirectory(path),
+        isDirectory: (path: string) => baseApi.getFS().isDirectory(path),
       },
 
       // Configuration access (uses current active FS, typically OPFS or user provided)

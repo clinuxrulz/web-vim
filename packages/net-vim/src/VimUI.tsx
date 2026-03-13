@@ -26,6 +26,7 @@ interface VimUIProps {
   statusMessage?: string | null | (() => string | null);
   wrap: boolean | (() => boolean);
   lineEnding: 'LF' | 'CRLF' | (() => 'LF' | 'CRLF');
+  picker?: (() => any) | any;
   onCursorChange?: (cursor: { x: number; y: number }) => void;
 }
 
@@ -55,6 +56,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const statusMessage = () => getProp(props.statusMessage);
   const wrap = () => getProp(props.wrap);
   const lineEnding = () => getProp(props.lineEnding);
+  const picker = () => (props as any).picker ? (props as any).picker() : null;
 
   const statusLineY = () => height() - 2;
   const commandLineY = () => height() - 1;
@@ -216,6 +218,13 @@ export const VimUI: Component<VimUIProps> = (props) => {
   };
   const popupX = () => Math.max(0, Math.min(visualCursorX(), width() - 30));
 
+  // Picker Calculations
+  const pickerWidth = () => Math.floor(width() * 0.8);
+  const pickerHeight = () => Math.floor(height() * 0.6);
+  const pickerX = () => Math.floor((width() - pickerWidth()) / 2);
+  const pickerY = () => Math.floor((height() - pickerHeight()) / 2);
+  const maxPickerItems = () => Math.max(0, pickerHeight() - 4); // 1 for title, 1 for input, 1 for border, 1 for separator
+
   return (
     <tui-box x={0} y={0} width={width()} height={height()} border={false}>
       {/* Gutters & Buffer View */}
@@ -368,6 +377,53 @@ export const VimUI: Component<VimUIProps> = (props) => {
               <tui-text x={1} y={i() + 1} content={line} />
             )}
           </For>
+        </tui-box>
+      </Show>
+
+      {/* Picker Overlay */}
+      <Show when={picker() && picker().active}>
+        <tui-box
+          x={pickerX()}
+          y={pickerY()}
+          width={pickerWidth()}
+          height={pickerHeight()}
+          border={true}
+          title={picker().placeholder}
+        >
+          {/* Input Area */}
+          <tui-box x={1} y={1} width={pickerWidth() - 2} height={1}>
+             <tui-text content={() => "> " + picker().query} />
+             <Show when={picker().loading}>
+                <tui-text x={pickerWidth() - 12} content="Loading..." color="#888888" />
+             </Show>
+          </tui-box>
+          
+          {/* Separator */}
+          <tui-text x={0} y={2} content={"".padStart(pickerWidth(), "─")} color="#444444" />
+
+          {/* Results Area */}
+          <tui-box x={1} y={3} width={pickerWidth() - 2} height={maxPickerItems()}>
+            <For each={picker().items.slice(0, maxPickerItems())}>
+              {(item, i) => {
+                const isSelected = () => i() === picker().selectedIndex;
+                return (
+                  <tui-box x={0} y={i()} width={pickerWidth() - 2} height={1}>
+                    <tui-text 
+                      content={() => (isSelected() ? "> " : "  ") + item.label} 
+                      color={isSelected() ? "#569cd6" : "#ffffff"}
+                    />
+                    <Show when={item.detail}>
+                       <tui-text 
+                         x={item.label.length + 4} 
+                         content={() => item.detail.slice(0, pickerWidth() - item.label.length - 8)} 
+                         color="#666666" 
+                       />
+                    </Show>
+                  </tui-box>
+                );
+              }}
+            </For>
+          </tui-box>
         </tui-box>
       </Show>
     </tui-box>

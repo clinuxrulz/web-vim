@@ -50,6 +50,11 @@ export default {
     if (markdownSyntax) {
       await api.loadPluginFromSource("markdown-syntax", markdownSyntax);
     }
+
+    const fuzzyFinder = await api.configFs.readFile(".config/net-vim/prelude/fuzzy-finder.tsx");
+    if (fuzzyFinder) {
+      await api.loadPluginFromSource("fuzzy-finder", fuzzyFinder);
+    }
   }
 };
 `;
@@ -476,6 +481,7 @@ export default {
           statusMessage={() => vimState().statusMessage}
           wrap={() => vimState().wrap}
           lineEnding={() => vimState().lineEnding}
+          picker={() => vimState().picker}
           width={() => gridDim().width}
           height={() => gridDim().height}
           onCursorChange={(c) => setVisualCursor(c)}

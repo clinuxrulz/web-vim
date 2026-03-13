@@ -1,5 +1,5 @@
 import { PluginManager } from './plugin-manager';
-import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem, FileSystem, ContextMenuItem, VimState, LineRendererOptions } from './types';
+import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem, FileSystem, ContextMenuItem, VimState, LineRendererOptions, PickerItem, PickerOptions } from './types';
 import { autoFS, PRELUDE_BASE } from './opfs-util';
 import { loadScript } from './utils';
 
@@ -40,6 +40,16 @@ export class VimEngine {
   private messageTimeout: any = null;
   private wrap = true;
   private lineEnding: 'LF' | 'CRLF' = 'LF';
+
+  // Picker State
+  private pickerActive = false;
+  private pickerQuery = '';
+  private pickerItems: PickerItem[] = [];
+  private pickerSelectedIndex = 0;
+  private pickerPlaceholder = 'Search...';
+  private pickerLoading = false;
+  private pickerOptions: PickerOptions | null = null;
+  private pickerDebounceTimeout: any = null;
 
   constructor(onUpdate: () => void) {
     this.onUpdate = onUpdate;
@@ -239,11 +249,54 @@ export class VimEngine {
       },
       insertText: (text) => this.insertText(text),
       rerender: () => this.onUpdate(),
+
+      showPicker: (options) => {
+        this.pickerActive = true;
+        this.pickerOptions = options;
+        this.pickerQuery = '';
+        this.pickerSelectedIndex = 0;
+        this.pickerPlaceholder = options.placeholder || 'Search...';
+        this.pickerItems = [];
+        this.updatePickerResults();
+        this.onUpdate();
+      },
+      hidePicker: () => {
+        this.pickerActive = false;
+        this.pickerOptions = null;
+        this.onUpdate();
+      },
+
       setFS: (fs) => { this.fs = fs; this.trigger('FSChanged'); this.onUpdate(); },
       getFS: () => this.fs,
       resetFS: () => { this.fs = autoFS; this.trigger('FSChanged'); this.onUpdate(); },
       babel: (window as any).Babel,
     };
+  }
+
+  private async updatePickerResults() {
+    if (!this.pickerOptions) return;
+
+    if (Array.isArray(this.pickerOptions.items)) {
+      const query = this.pickerQuery.toLowerCase();
+      this.pickerItems = this.pickerOptions.items.filter(item => 
+        item.label.toLowerCase().includes(query) || (item.detail && item.detail.toLowerCase().includes(query))
+      );
+      this.pickerSelectedIndex = Math.min(this.pickerSelectedIndex, Math.max(0, this.pickerItems.length - 1));
+      this.onUpdate();
+    } else if (typeof this.pickerOptions.items === 'function') {
+      this.pickerLoading = true;
+      this.onUpdate();
+      try {
+        const results = await this.pickerOptions.items(this.pickerQuery);
+        this.pickerItems = results;
+        this.pickerSelectedIndex = Math.min(this.pickerSelectedIndex, Math.max(0, this.pickerItems.length - 1));
+      } catch (err) {
+        console.error('Picker error:', err);
+      } finally {
+        this.pickerLoading = false;
+        this.onUpdate();
+      }
+    }
   }
 
   private insertText(text: string) {
@@ -385,6 +438,14 @@ export class VimEngine {
       statusMessage: this.statusMessage,
       wrap: this.wrap,
       lineEnding: this.lineEnding,
+      picker: this.pickerActive ? {
+        active: true,
+        query: this.pickerQuery,
+        items: this.pickerItems,
+        selectedIndex: this.pickerSelectedIndex,
+        placeholder: this.pickerPlaceholder,
+        loading: this.pickerLoading
+      } : null,
     };
   }
 
@@ -400,6 +461,12 @@ export class VimEngine {
 
   public handleKey(key: string, _ctrl: boolean = false) {
     this.trigger('KeyDown', { key, ctrl: _ctrl });
+
+    // Handle Picker if active
+    if (this.pickerActive) {
+      this.handlePickerKey(key, _ctrl);
+      return;
+    }
 
     // Intercept keys if completions are showing
     if (this.completionItems.length > 0) {
@@ -457,6 +524,58 @@ export class VimEngine {
     }
     
     this.onUpdate();
+  }
+
+  private handlePickerKey(key: string, ctrl: boolean) {
+    if (key === 'Escape' || (key === 'c' && ctrl)) {
+      if (this.pickerOptions?.onCancel) this.pickerOptions.onCancel();
+      this.pickerActive = false;
+      this.onUpdate();
+      return;
+    }
+
+    if (key === 'ArrowDown' || (key === 'n' && ctrl) || (key === 'j' && ctrl)) {
+      this.pickerSelectedIndex = (this.pickerSelectedIndex + 1) % Math.max(1, this.pickerItems.length);
+      this.onUpdate();
+      return;
+    }
+
+    if (key === 'ArrowUp' || (key === 'p' && ctrl) || (key === 'k' && ctrl)) {
+      this.pickerSelectedIndex = (this.pickerSelectedIndex - 1 + this.pickerItems.length) % Math.max(1, this.pickerItems.length);
+      this.onUpdate();
+      return;
+    }
+
+    if (key === 'Enter') {
+      const selected = this.pickerItems[this.pickerSelectedIndex];
+      if (selected && this.pickerOptions?.onSelect) {
+        this.pickerOptions.onSelect(selected);
+      }
+      this.pickerActive = false;
+      this.onUpdate();
+      return;
+    }
+
+    if (key === 'Backspace') {
+      this.pickerQuery = this.pickerQuery.slice(0, -1);
+      this.debouncedPickerUpdate();
+      this.onUpdate();
+      return;
+    }
+
+    if (key.length === 1 && !ctrl) {
+      this.pickerQuery += key;
+      this.debouncedPickerUpdate();
+      this.onUpdate();
+      return;
+    }
+  }
+
+  private debouncedPickerUpdate() {
+    if (this.pickerDebounceTimeout) clearTimeout(this.pickerDebounceTimeout);
+    this.pickerDebounceTimeout = setTimeout(() => {
+      this.updatePickerResults();
+    }, 150);
   }
 
   private async handleExplorerSelect() {
@@ -555,71 +674,113 @@ export class VimEngine {
   }
 
   private handleNormalMode(key: string, ctrl: boolean) {
-    if (this.pendingSequence === 'Ctrl-w') {
-      this.pendingSequence = '';
-      if (key === 'd') {
-        this.executeCommand('showDiagnostics');
-        return;
-      }
-      // If not matched, we still consumed the Ctrl-w, but we should probably 
-      // let the current key be handled if it's not part of the sequence.
-      // However, usually in Vim, unknown sequence ends the sequence.
+    let currentSeq = this.pendingSequence;
+    if (ctrl) {
+      currentSeq += 'Ctrl-' + key;
+    } else if (key === this.leader) {
+      currentSeq += 'leader';
+    } else {
+      currentSeq += key;
     }
 
-    if (this.pendingSequence === 'leader') {
+    // Check for sequences
+    if (currentSeq === 'Ctrl-w') {
+      this.pendingSequence = 'Ctrl-w';
+      return;
+    }
+    if (currentSeq === 'Ctrl-wd') {
       this.pendingSequence = '';
-      if (key === 'd') {
-        this.executeCommand('showDiagnostics');
-        return;
-      }
-      if (key === 'e') {
-        this.executeCommand('hover');
-        return;
-      }
-      // Fall through to handle key normally if leader sequence wasn't matched
+      this.executeCommand('showDiagnostics');
+      return;
     }
 
-    if (this.pendingSequence === '[') {
+    if (currentSeq === 'leader') {
+      this.pendingSequence = 'leader';
+      return;
+    }
+    if (currentSeq === 'leaderd') {
       this.pendingSequence = '';
-      if (key === 'd') {
-        this.executeCommand('prevDiagnostic');
-        return;
-      }
+      this.executeCommand('showDiagnostics');
+      return;
+    }
+    if (currentSeq === 'leadere') {
+      this.pendingSequence = '';
+      this.executeCommand('hover');
+      return;
+    }
+    if (currentSeq === 'leaderf') {
+      this.pendingSequence = 'leaderf';
+      return;
+    }
+    if (currentSeq === 'leaderff') {
+      this.pendingSequence = '';
+      this.executeCommand('fuzzyFiles');
+      return;
+    }
+    if (currentSeq === 'leaderfg') {
+      this.pendingSequence = '';
+      this.executeCommand('liveGrep');
+      return;
     }
 
-    if (this.pendingSequence === ']') {
+    if (currentSeq === '[') {
+      this.pendingSequence = '[';
+      return;
+    }
+    if (currentSeq === '[d') {
       this.pendingSequence = '';
-      if (key === 'd') {
-        this.executeCommand('nextDiagnostic');
-        return;
-      }
+      this.executeCommand('prevDiagnostic');
+      return;
     }
 
-    if (this.pendingSequence === 'y') {
+    if (currentSeq === ']') {
+      this.pendingSequence = ']';
+      return;
+    }
+    if (currentSeq === ']d') {
       this.pendingSequence = '';
-      if (key === 'y') {
-        const line = this.buffer[this.cursor.y] || '';
-        this.yankToClipboard(line + '\n');
-        return;
-      }
+      this.executeCommand('nextDiagnostic');
+      return;
     }
 
-    if (this.pendingSequence === 'd') {
+    if (currentSeq === 'y') {
+      this.pendingSequence = 'y';
+      return;
+    }
+    if (currentSeq === 'yy') {
       this.pendingSequence = '';
-      if (key === 'd') {
-        const line = this.buffer[this.cursor.y] || '';
-        this.yankToClipboard(line + '\n');
-        this.buffer.splice(this.cursor.y, 1);
-        if (this.buffer.length === 0) this.buffer = [''];
-        this.setCursor(this.cursor.x, this.cursor.y);
-        this.trigger('TextChanged');
-        return;
-      }
+      const line = this.buffer[this.cursor.y] || '';
+      this.yankToClipboard(line + '\n');
+      return;
+    }
+
+    if (currentSeq === 'd') {
+      this.pendingSequence = 'd';
+      return;
+    }
+    if (currentSeq === 'dd') {
+      this.pendingSequence = '';
+      const line = this.buffer[this.cursor.y] || '';
+      this.yankToClipboard(line + '\n');
+      this.buffer.splice(this.cursor.y, 1);
+      if (this.buffer.length === 0) this.buffer = [''];
+      this.setCursor(this.cursor.x, this.cursor.y);
+      this.trigger('TextChanged');
+      return;
+    }
+
+    // If we're here and have a pending sequence, but no match, reset it
+    // unless the current key might start a new sequence.
+    if (this.pendingSequence !== '') {
+      this.pendingSequence = '';
+      // If we didn't match anything with the full sequence, 
+      // try handling the current key as a fresh start.
+      this.handleNormalMode(key, ctrl);
+      return;
     }
 
     if (ctrl) {
       switch (key) {
-        case 'w': this.pendingSequence = 'Ctrl-w'; return;
         case 'd': // Scroll down half page
           const halfPage = Math.floor(this.viewportHeight / 2);
           this.setCursor(this.cursor.x, this.cursor.y + halfPage);
@@ -648,11 +809,6 @@ export class VimEngine {
       return;
     }
 
-    if (key === this.leader) {
-      this.pendingSequence = 'leader';
-      return;
-    }
-
     switch (key) {
       case 'i': this.mode = 'Insert'; break;
       case 'v': 
@@ -673,10 +829,6 @@ export class VimEngine {
       case 'k': this.moveCursor('up'); break;
       case "ArrowRight":
       case 'l': this.moveCursor('right'); break;
-      case 'y': this.pendingSequence = 'y'; break;
-      case 'd': this.pendingSequence = 'd'; break;
-      case '[': this.pendingSequence = '['; break;
-      case ']': this.pendingSequence = ']'; break;
       case 'Home': this.setCursor(0, this.cursor.y); break;
       case 'End': this.setCursor(this.buffer[this.cursor.y]?.length || 0, this.cursor.y); break;
       case 'PageUp': this.setCursor(this.cursor.x, this.cursor.y - this.viewportHeight); break;

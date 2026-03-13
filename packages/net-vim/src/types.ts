@@ -60,6 +60,19 @@ export interface LineRendererOptions {
   }) => any;
 }
 
+export interface PickerItem {
+  label: string;
+  detail?: string;
+  id?: string;
+}
+
+export interface PickerOptions {
+  items: PickerItem[] | ((query: string) => Promise<PickerItem[]>);
+  onSelect: (item: PickerItem) => void;
+  onCancel?: () => void;
+  placeholder?: string;
+}
+
 export interface VimState {
   buffer: string[];
   cursor: { x: number; y: number };
@@ -86,6 +99,14 @@ export interface VimState {
   statusMessage: string | null;
   wrap: boolean;
   lineEnding: 'LF' | 'CRLF';
+  picker: {
+    active: boolean;
+    query: string;
+    items: PickerItem[];
+    selectedIndex: number;
+    placeholder: string;
+    loading: boolean;
+  } | null;
 }
 
 export interface FileSystem {
@@ -118,6 +139,10 @@ export interface VimAPI {
   registerContextMenuItem: (item: ContextMenuItem) => void;
   insertText: (text: string) => void;
   rerender: () => void;
+
+  // Picker API
+  showPicker: (options: PickerOptions) => void;
+  hidePicker: () => void;
 
   // File System
   setFS: (fs: FileSystem) => void;
