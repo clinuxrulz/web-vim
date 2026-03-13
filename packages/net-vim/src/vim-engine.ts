@@ -36,6 +36,7 @@ export class VimEngine {
   private onCompletionSelect: ((item: CompletionItem) => void) | null = null;
   private hoverText: string | null = null;
   private hoverPos = { x: 0, y: 0 };
+  private hoverScrollOffset = 0;
   private statusMessage: string | null = null;
   private messageTimeout: any = null;
   private wrap = true;
@@ -240,12 +241,15 @@ export class VimEngine {
       showHover: (text, x, y) => {
         this.hoverText = text;
         this.hoverPos = { x, y };
+        this.hoverScrollOffset = 0;
         this.onUpdate();
       },
       hideHover: () => {
         this.hoverText = null;
+        this.hoverScrollOffset = 0;
         this.onUpdate();
       },
+
       registerContextMenuItem: (item) => {
         this.contextMenuItems.push(item);
         this.contextMenuItems.sort((a, b) => (b.priority || 0) - (a.priority || 0));
@@ -439,6 +443,7 @@ export class VimEngine {
       selectedCompletionIndex: this.selectedCompletionIndex,
       hoverText: this.hoverText,
       hoverPos: this.hoverPos,
+      hoverScrollOffset: this.hoverScrollOffset,
       statusMessage: this.statusMessage,
       wrap: this.wrap,
       lineEnding: this.lineEnding,
@@ -783,6 +788,19 @@ export class VimEngine {
       // try handling the current key as a fresh start.
       this.handleNormalMode(key, ctrl);
       return;
+    }
+
+    if (this.hoverText && ctrl) {
+      if (key === 'd' || key === 'e') {
+        this.hoverScrollOffset += (key === 'd' ? 5 : 1);
+        this.onUpdate();
+        return;
+      }
+      if (key === 'u' || key === 'y') {
+        this.hoverScrollOffset = Math.max(0, this.hoverScrollOffset - (key === 'u' ? 5 : 1));
+        this.onUpdate();
+        return;
+      }
     }
 
     if (ctrl) {

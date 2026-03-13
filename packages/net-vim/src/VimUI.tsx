@@ -23,6 +23,7 @@ interface VimUIProps {
   selectedCompletionIndex?: number | (() => number);
   hoverText?: string | null | (() => string | null);
   hoverPos?: { x: number; y: number } | (() => { x: number; y: number });
+  hoverScrollOffset?: number | (() => number);
   statusMessage?: string | null | (() => string | null);
   wrap: boolean | (() => boolean);
   lineEnding: 'LF' | 'CRLF' | (() => 'LF' | 'CRLF');
@@ -53,6 +54,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const selectedCompletionIndex = () => getProp(props.selectedCompletionIndex) || 0;
   const hoverText = () => getProp(props.hoverText);
   const hoverPos = () => getProp(props.hoverPos) || { x: 0, y: 0 };
+  const hoverScrollOffset = () => getProp(props.hoverScrollOffset) || 0;
   const statusMessage = () => getProp(props.statusMessage);
   const wrap = () => getProp(props.wrap);
   const lineEnding = () => getProp(props.lineEnding);
@@ -201,9 +203,40 @@ export const VimUI: Component<VimUIProps> = (props) => {
     return completionItems().slice(start, start + MAX_COMPLETIONS);
   };
 
-  const hoverLines = () => (hoverText() || '').split('\n');
-  const hoverHeight = () => hoverLines().length + 2;
-  const hoverWidth = () => Math.max(20, Math.min(40, ...hoverLines().map(l => l.length + 2)));
+  const maxHoverWidth = () => Math.min(width() - 4, 60);
+  const maxHoverHeight = () => Math.min(height() - 4, 15);
+
+  const hoverLines = () => {
+    const text = hoverText() || '';
+    const lines = text.split('\n');
+    const wrapped: string[] = [];
+    const maxW = maxHoverWidth() - 2;
+
+    for (const line of lines) {
+      if (line.length <= maxW) {
+        wrapped.push(line);
+      } else {
+        let current = line;
+        while (current.length > maxW) {
+          let splitIdx = current.lastIndexOf(' ', maxW);
+          if (splitIdx < maxW / 2) splitIdx = maxW; // Force split if no space found in the last half
+          wrapped.push(current.slice(0, splitIdx));
+          current = current.slice(splitIdx).trim();
+        }
+        if (current) wrapped.push(current);
+      }
+    }
+    return wrapped;
+  };
+
+  const hoverHeight = () => Math.min(hoverLines().length + 2, maxHoverHeight());
+  const hoverWidth = () => {
+    const lines = hoverLines();
+    if (lines.length === 0) return 20;
+    return Math.max(20, Math.min(maxHoverWidth(), Math.max(...lines.map(l => l.length + 2))));
+  };
+
+  const visibleHoverLines = () => hoverLines().slice(hoverScrollOffset(), hoverScrollOffset() + hoverHeight() - 2);
 
   const popupHeight = () => visibleCompletions().length + 2;
   const popupY = () => {
@@ -366,7 +399,6 @@ export const VimUI: Component<VimUIProps> = (props) => {
         </tui-box>
       </Show>
 
-      {/* Hover Info */}
       <Show when={hoverText()}>
         <tui-box
           x={Math.min(hoverPos().x, width() - hoverWidth())}
@@ -375,7 +407,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
           height={hoverHeight()}
           border={true}
         >
-          <For each={hoverLines()}>
+          <For each={visibleHoverLines()}>
             {(line, i) => (
               <tui-text x={1} y={i() + 1} content={line} />
             )}

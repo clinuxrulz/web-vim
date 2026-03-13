@@ -32,6 +32,8 @@ pub struct BoxProps {
     pub title: Option<String>,
     #[serde(default)]
     pub border: bool,
+    #[serde(default = "default_true")]
+    pub clear_bg: bool,
     #[serde(default)]
     pub x: u16,
     #[serde(default)]
@@ -40,6 +42,10 @@ pub struct BoxProps {
     pub width: u16,
     #[serde(default)]
     pub height: u16,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -155,6 +161,34 @@ impl Engine {
                 ).intersection(Rect::new(0, 0, self.width, self.height));
 
                 if rect.width > 0 && rect.height > 0 {
+                    if props.clear_bg {
+                        // Fill the box area with spaces and default style
+                        // If there's a border, we can either clear inside the border 
+                        // OR clear the whole thing before drawing the border.
+                        // User says: "fill its background with spaces (excluding spaces on the border)"
+                        // This implies clearing only the inside.
+                        let fill_rect = if props.border {
+                             Rect::new(
+                                rect.x + 1, 
+                                rect.y + 1, 
+                                rect.width.saturating_sub(2), 
+                                rect.height.saturating_sub(2)
+                             ).intersection(rect)
+                        } else {
+                             rect
+                        };
+                        
+                        for y in fill_rect.y..fill_rect.y + fill_rect.height {
+                            for x in fill_rect.x..fill_rect.x + fill_rect.width {
+                                if x < self.width && y < self.height {
+                                    let cell = &mut self.buffer[(x, y)];
+                                    cell.set_symbol(" ");
+                                    cell.set_bg(Color::Reset);
+                                }
+                            }
+                        }
+                    }
+
                     if props.border {
                         let mut block = Block::default().borders(Borders::ALL);
                         if let Some(title) = &props.title {

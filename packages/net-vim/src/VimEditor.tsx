@@ -478,6 +478,7 @@ export default {
           selectedCompletionIndex={() => vimState().selectedCompletionIndex}
           hoverText={() => vimState().hoverText}
           hoverPos={() => vimState().hoverPos}
+          hoverScrollOffset={() => vimState().hoverScrollOffset}
           statusMessage={() => vimState().statusMessage}
           wrap={() => vimState().wrap}
           lineEnding={() => vimState().lineEnding}
@@ -542,6 +543,9 @@ export default {
             });
 
             props.border = props.border === true || props.border === 'true';
+            props.clear_bg = props.clearBg !== undefined ? (props.clearBg === true || props.clearBg === 'true') : 
+                             props.clear_bg !== undefined ? (props.clear_bg === true || props.clear_bg === 'true') : true;
+
             if (props.content !== undefined) props.content = String(props.content ?? '');
             if (props.title !== undefined) props.title = String(props.title ?? '');
             if (props.color !== undefined) props.color = String(props.color);

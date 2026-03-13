@@ -96,6 +96,7 @@ export interface VimState {
   selectedCompletionIndex: number;
   hoverText: string | null;
   hoverPos: { x: number; y: number };
+  hoverScrollOffset: number;
   statusMessage: string | null;
   wrap: boolean;
   lineEnding: 'LF' | 'CRLF';
