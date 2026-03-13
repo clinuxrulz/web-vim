@@ -56,6 +56,7 @@ export interface LineRendererOptions {
     visualStart?: { x: number; y: number } | null | (() => { x: number; y: number } | null);
     mode?: VimMode | (() => VimMode);
     cursor?: { x: number; y: number } | (() => { x: number; y: number });
+    currentFilePath?: string | null | (() => string | null);
   }) => any;
 }
 
@@ -101,6 +102,7 @@ export interface VimAPI {
   setCursor: (x: number, y: number) => void;
   getVisualStart: () => { x: number, y: number } | null;
   getMode: () => VimMode;
+  getCurrentFilePath: () => string | null;
   on: (event: VimEvent, callback: (...args: any[]) => void) => void;
   executeCommand: (cmd: string) => void;
   loadPluginFromSource: (name: string, source: string) => Promise<boolean>;

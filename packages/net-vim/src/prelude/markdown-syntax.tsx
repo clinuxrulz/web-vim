@@ -9,18 +9,15 @@ export default {
     api.registerLineRenderer({
       name: 'markdown-highlighter',
       priority: 20, // Higher priority than default
-      render: ({ lineIndex, lineContent, leftCol, viewportWidth, visualStart, mode, cursor }: any) => {
+      render: ({ lineIndex, lineContent, leftCol, viewportWidth, visualStart, mode, cursor, currentFilePath }: any) => {
+        const path = typeof currentFilePath === 'function' ? currentFilePath() : currentFilePath;
+        if (!path || !path.endsWith('.md')) return null;
+
         const content = typeof lineContent === 'function' ? lineContent() : lineContent;
         const startCol = typeof leftCol === 'function' ? leftCol() : leftCol;
         const width = typeof viewportWidth === 'function' ? viewportWidth() : viewportWidth;
         const idx = typeof lineIndex === 'function' ? lineIndex() : lineIndex;
 
-        // Only highlight if it's a .md file
-        const state = api.getMode ? { currentFilePath: '' } : {}; // Fallback if API is different
-        // We can check if it's a markdown file by looking at the buffer content if filename is not available
-        // but typically we have currentFilePath in the engine state.
-        // For now let's assume we want to highlight if it looks like markdown or we're in help.md
-        
         // Basic regex for markdown
         const headerRegex = /^(#{1,6}\s+.*)$/;
         const listRegex = /^(\s*[*+-]\s+.*)$/;

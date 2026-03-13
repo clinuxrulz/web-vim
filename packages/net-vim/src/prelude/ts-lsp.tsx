@@ -569,7 +569,10 @@ export default {
       api.registerLineRenderer({
         name: 'ts-highlighter',
         priority: 10,
-        render: ({ lineIndex, lineContent, leftCol, viewportWidth, visualStart, mode, cursor }: any) => {
+        render: ({ lineIndex, lineContent, leftCol, viewportWidth, visualStart, mode, cursor, currentFilePath }: any) => {
+          const path = typeof currentFilePath === 'function' ? currentFilePath() : currentFilePath;
+          if (!path || !(path.endsWith('.ts') || path.endsWith('.tsx'))) return null;
+
           const content = typeof lineContent === 'function' ? lineContent() : lineContent;
           const startCol = typeof leftCol === 'function' ? leftCol() : leftCol;
           const width = typeof viewportWidth === 'function' ? viewportWidth() : viewportWidth;
@@ -598,11 +601,7 @@ export default {
           }
 
           const getRawTokens = () => {
-            if (!currentPath || !(currentPath.endsWith('.ts') || currentPath.endsWith('.tsx'))) {
-              return [{ x: 0, content: content.slice(startCol, startCol + width), color: '#ffffff' }];
-            }
-
-            const absolutePath = currentPath.startsWith('/') ? currentPath : '/' + currentPath;
+            const absolutePath = path.startsWith('/') ? path : '/' + path;
             const classifications = classificationsMap.get(absolutePath);
             if (!classifications) {
               return [{ x: 0, content: content.slice(startCol, startCol + width), color: '#ffffff' }];

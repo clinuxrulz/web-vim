@@ -61,6 +61,26 @@ export const VimUI: Component<VimUIProps> = (props) => {
   const totalGutterWidth = () => gutters().reduce((acc, g) => acc + g.width, 0);
   const viewportWidth = () => width() - totalGutterWidth();
 
+  const renderLine = (absoluteLineIndex: () => number, lineContent: string, localLeftCol: number) => {
+    const renderers = lineRenderers();
+    for (const renderer of renderers) {
+      const result = renderer.render({
+        lineIndex: absoluteLineIndex,
+        lineContent: lineContent,
+        isCursorLine: () => cursor().y === absoluteLineIndex(),
+        gutterWidth: totalGutterWidth,
+        leftCol: () => localLeftCol,
+        viewportWidth: viewportWidth,
+        visualStart: visualStart(),
+        mode: mode(),
+        cursor: cursor(),
+        currentFilePath: currentFilePath
+      });
+      if (result !== undefined && result !== null) return result;
+    }
+    return null;
+  };
+
   const visualCursorY = () => {
     if (mode() === 'Command') return commandLineY();
 
@@ -100,8 +120,6 @@ export const VimUI: Component<VimUIProps> = (props) => {
       return c.x - leftCol() + gWidth;
     }
   };
-
-  const lineRenderer = () => lineRenderers()[0];
 
   createEffect(() => {
     if (props.onCursorChange) {
@@ -223,82 +241,71 @@ export const VimUI: Component<VimUIProps> = (props) => {
                   );
                 }}
               </For>
-              <Show 
-                when={lineRenderer()} 
-                fallback={
-                  (() => {
-                    const start = visualStart();
-                    const lineIdx = absoluteLineIndex();
-                    const rowContent = item().content;
-                    const vWidth = viewportWidth();
-                    const gWidth = totalGutterWidth();
-
-                    if (!start || mode() !== 'Visual') {
-                      return <tui-text x={gWidth} y={0} content={rowContent} />;
-                    }
-
-                    const end = cursor();
-                    let s = start;
-                    let e = end;
-                    if (s.y > e.y || (s.y === e.y && s.x > e.x)) {
-                      [s, e] = [e, s];
-                    }
-
-                    if (lineIdx < s.y || lineIdx > e.y) {
-                      return <tui-text x={gWidth} y={0} content={rowContent} />;
-                    }
-
-                    // Calculate selection start and end within THIS display row
-                    const rowStartOffset = item().rowInLine * vWidth;
-                    const rowEndOffset = rowStartOffset + vWidth;
-
-                    let highlightStartInLine = 0;
-                    let highlightEndInLine = lineContent().length;
-
-                    if (lineIdx === s.y) highlightStartInLine = s.x;
-                    if (lineIdx === e.y) highlightEndInLine = e.x + 1;
-
-                    const highlightStart = Math.max(rowStartOffset, highlightStartInLine);
-                    const highlightEnd = Math.min(rowEndOffset, highlightEndInLine);
-
-                    if (highlightStart >= highlightEnd) {
-                       return <tui-text x={gWidth} y={0} content={rowContent} />;
-                    }
-
-                    const relStart = Math.max(0, highlightStart - rowStartOffset);
-                    const relEnd = Math.min(vWidth, highlightEnd - rowStartOffset);
-
-                    const before = rowContent.slice(0, relStart);
-                    const selected = rowContent.slice(relStart, relEnd);
-                    const after = rowContent.slice(relEnd);
-
-                    return (
-                      <tui-box x={gWidth} y={0} width={vWidth} height={1}>
-                        <tui-text x={0} y={0} content={before} />
-                        <tui-text x={before.length} y={0} content={selected} bg_color="#004b72" />
-                        <tui-text x={before.length + selected.length} y={0} content={after} />
-                      </tui-box>
-                    );
-                  })()
+              {(() => {
+                const localLeftCol = wrap() ? item().rowInLine * viewportWidth() : leftCol();
+                const result = renderLine(absoluteLineIndex, lineContent(), localLeftCol);
+                
+                if (result) {
+                  return (
+                    <tui-box x={totalGutterWidth()} y={0} width={viewportWidth()} height={1}>
+                      {result}
+                    </tui-box>
+                  );
                 }
-              >
-                <tui-box x={totalGutterWidth()} y={0} width={viewportWidth()} height={1}>
-                  {() => {
-                    const localLeftCol = wrap() ? item().rowInLine * viewportWidth() : leftCol();
-                    return lineRenderer()?.render({
-                      lineIndex: absoluteLineIndex,
-                      lineContent: lineContent(),
-                      isCursorLine: () => cursor().y === absoluteLineIndex(),
-                      gutterWidth: totalGutterWidth,
-                      leftCol: () => localLeftCol,
-                      viewportWidth: viewportWidth,
-                      visualStart: visualStart(),
-                      mode: mode(),
-                      cursor: cursor()
-                    });
-                  }}
-                </tui-box>
-              </Show>
+
+                // Fallback rendering
+                const start = visualStart();
+                const lineIdx = absoluteLineIndex();
+                const rowContent = item().content;
+                const vWidth = viewportWidth();
+                const gWidth = totalGutterWidth();
+
+                if (!start || mode() !== 'Visual') {
+                  return <tui-text x={gWidth} y={0} content={rowContent} />;
+                }
+
+                const end = cursor();
+                let s = start;
+                let e = end;
+                if (s.y > e.y || (s.y === e.y && s.x > e.x)) {
+                  [s, e] = [e, s];
+                }
+
+                if (lineIdx < s.y || lineIdx > e.y) {
+                  return <tui-text x={gWidth} y={0} content={rowContent} />;
+                }
+
+                const rowStartOffset = item().rowInLine * vWidth;
+                const rowEndOffset = rowStartOffset + vWidth;
+
+                let highlightStartInLine = 0;
+                let highlightEndInLine = lineContent().length;
+
+                if (lineIdx === s.y) highlightStartInLine = s.x;
+                if (lineIdx === e.y) highlightEndInLine = e.x + 1;
+
+                const highlightStart = Math.max(rowStartOffset, highlightStartInLine);
+                const highlightEnd = Math.min(rowEndOffset, highlightEndInLine);
+
+                if (highlightStart >= highlightEnd) {
+                   return <tui-text x={gWidth} y={0} content={rowContent} />;
+                }
+
+                const relStart = Math.max(0, highlightStart - rowStartOffset);
+                const relEnd = Math.min(vWidth, highlightEnd - rowStartOffset);
+
+                const before = rowContent.slice(0, relStart);
+                const selected = rowContent.slice(relStart, relEnd);
+                const after = rowContent.slice(relEnd);
+
+                return (
+                  <tui-box x={gWidth} y={0} width={vWidth} height={1}>
+                    <tui-text x={0} y={0} content={before} />
+                    <tui-text x={before.length} y={0} content={selected} bg_color="#004b72" />
+                    <tui-text x={before.length + selected.length} y={0} content={after} />
+                  </tui-box>
+                );
+              })()}
             </tui-box>
           );
         }}

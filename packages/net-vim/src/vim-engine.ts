@@ -186,6 +186,7 @@ export class VimEngine {
       setCursor: (x, y) => { this.setCursor(x, y); },
       getVisualStart: () => this.visualStart ? ({ ...this.visualStart }) : null,
       getMode: () => this.mode,
+      getCurrentFilePath: () => this.currentFilePath,
       on: (event, callback) => {
         if (!this.eventListeners.has(event)) {
           this.eventListeners.set(event, []);
