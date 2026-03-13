@@ -10,6 +10,8 @@ export { default as VimEditor } from './VimEditor';
 export * from './types';
 export * from './vim-engine';
 export * from './plugin-manager';
+export * as prelude from './prelude';
+export { PRELUDE_PLUGINS } from './prelude';
 
 export interface InitOptions {
   wasmUrl?: string;

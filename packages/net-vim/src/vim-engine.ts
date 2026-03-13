@@ -214,6 +214,7 @@ export class VimEngine {
       },
       executeCommand: (cmd) => this.executeCommand(cmd),
       loadPluginFromSource: (name, source) => this.loadPluginFromSource(name, source),
+      loadPlugin: (plugin) => this.loadPlugin(plugin),
       registerGutter: (options: GutterOptions) => {
         console.log(`[VimEngine] Registering gutter: ${options.name}`, options);
         this.gutters.push(options);
@@ -408,6 +409,10 @@ export class VimEngine {
 
   public async loadPluginFromSource(name: string, tsSource: string) {
     return this.pluginManager.loadPluginFromSource(name, tsSource);
+  }
+
+  public async loadPlugin(plugin: any) {
+    return this.pluginManager.loadPlugin(plugin);
   }
 
   public setCursor(x: number, y: number) {

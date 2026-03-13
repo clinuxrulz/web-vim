@@ -138,10 +138,12 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
     selectedCompletionIndex: 0,
     hoverText: null,
     hoverPos: { x: 0, y: 0 },
+    hoverScrollOffset: 0,
     statusMessage: null,
     commandCursorX: 0,
     wrap: false,
     lineEnding: 'LF',
+    picker: null,
   });
 
   let containerRef: HTMLDivElement | undefined;

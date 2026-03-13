@@ -1,5 +1,7 @@
 
 // @ts-nocheck
+import workerSource from './ts-lsp-worker.ts?raw';
+
 export default {
   metadata: {
     name: 'ts-lsp',
@@ -11,7 +13,6 @@ export default {
       const Comlink = await import("https://esm.sh/comlink@4.4.1");
       api.log('TS-LSP: Comlink loaded. Loading worker source...');
       
-      const workerSource = await api.configFs.readFile(".config/net-vim/prelude/ts-lsp-worker.ts");
       if (!workerSource) {
         api.log("TS-LSP Error: Could not find worker source");
         return;

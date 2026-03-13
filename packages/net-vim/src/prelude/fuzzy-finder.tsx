@@ -23,7 +23,7 @@ export default {
             allFiles.push(fullPath);
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         api.log('FuzzyFinder: Walk error at ' + path + ': ' + e.message);
       }
     };
@@ -36,7 +36,7 @@ export default {
       api.showPicker({
         placeholder: 'Find Files',
         items: allFiles.map(f => ({ label: f, id: f })),
-        onSelect: (item) => {
+        onSelect: (item: any) => {
           api.executeCommand(`e ${item.id}`);
         }
       });
@@ -49,7 +49,7 @@ export default {
 
       api.showPicker({
         placeholder: 'Live Grep',
-        items: async (query) => {
+        items: async (query: string) => {
           if (!query || query.length < 2) return [];
           
           const results: any[] = [];

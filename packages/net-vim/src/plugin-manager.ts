@@ -106,6 +106,15 @@ export class PluginManager {
     }
   }
 
+  /**
+   * Loads a plugin from a WebVimPlugin object
+   */
+  async loadPlugin(plugin: WebVimPlugin) {
+    const id = plugin.metadata?.name || `plugin-${Math.random().toString(36).slice(2, 9)}`;
+    await this.registerPlugin(id, plugin);
+    return true;
+  }
+
   private async registerPlugin(id: string, plugin: WebVimPlugin) {
     const name = plugin.metadata?.name || id;
     console.log(`[PluginManager] Registering plugin: ${name}`);

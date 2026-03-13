@@ -129,6 +129,7 @@ export interface VimAPI {
   on: (event: VimEvent, callback: (...args: any[]) => void) => void;
   executeCommand: (cmd: string) => void;
   loadPluginFromSource: (name: string, source: string) => Promise<boolean>;
+  loadPlugin: (plugin: any) => Promise<boolean>;
   registerGutter: (options: GutterOptions) => void;
   registerLineRenderer: (options: LineRendererOptions) => void;
   
