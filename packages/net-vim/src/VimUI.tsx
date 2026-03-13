@@ -86,7 +86,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
   };
 
   const visualCursorY = () => {
-    if (mode() === 'Command') return commandLineY();
+    if (mode() === 'Command' || mode() === 'Search') return commandLineY();
 
     const c = cursor();
     const start = topLine();
@@ -112,7 +112,7 @@ export const VimUI: Component<VimUIProps> = (props) => {
   };
 
   const visualCursorX = () => {
-    if (mode() === 'Command') return commandCursorX() + 1; // +1 for ':'
+    if (mode() === 'Command' || mode() === 'Search') return commandCursorX() + 1; // +1 for ':' or '/'
 
     const c = cursor();
     const vWidth = viewportWidth();
@@ -332,7 +332,10 @@ export const VimUI: Component<VimUIProps> = (props) => {
         <Show when={mode() === 'Command'}>
           <tui-text x={0} y={0} content={`:${commandText()}`} />
         </Show>
-        <Show when={mode() !== 'Command' && statusMessage()}>
+        <Show when={mode() === 'Search'}>
+          <tui-text x={0} y={0} content={`/${commandText()}`} />
+        </Show>
+        <Show when={mode() !== 'Command' && mode() !== 'Search' && statusMessage()}>
           <tui-text x={0} y={0} content={statusMessage()} />
         </Show>
       </tui-box>

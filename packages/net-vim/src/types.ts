@@ -11,7 +11,7 @@ declare module "solid-js" {
 
 export const TYPES_VERSION = '1.0.0';
 
-export type VimMode = 'Normal' | 'Insert' | 'Command' | 'Visual';
+export type VimMode = 'Normal' | 'Insert' | 'Command' | 'Visual' | 'Search';
 
 export type VimEvent = 'ModeChanged' | 'CursorMoved' | 'TextChanged' | 'BufferLoaded' | 'FileChanged' | 'FileDeleted' | 'KeyDown' | 'FSChanged';
 

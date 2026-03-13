@@ -51,6 +51,10 @@ export class VimEngine {
   private pickerOptions: PickerOptions | null = null;
   private pickerDebounceTimeout: any = null;
 
+  // Search State
+  private lastSearchPattern = '';
+  private lastSearchForward = true;
+
   constructor(onUpdate: () => void) {
     this.onUpdate = onUpdate;
     this.registerBuiltinCommands();
@@ -510,6 +514,8 @@ export class VimEngine {
       this.handleInsertMode(key, _ctrl);
     } else if (this.mode === 'Command') {
       this.handleCommandMode(key, _ctrl);
+    } else if (this.mode === 'Search') {
+      this.handleSearchMode(key, _ctrl);
     } else if (this.mode === 'Visual') {
       this.handleVisualMode(key, _ctrl);
     }
@@ -821,6 +827,20 @@ export class VimEngine {
         }
         break;
       case ':': this.mode = 'Command'; this.commandText = ''; this.commandCursorX = 0; break;
+      case '/': 
+        this.mode = 'Search'; 
+        this.commandText = ''; 
+        this.commandCursorX = 0; 
+        this.lastSearchForward = true;
+        break;
+      case '?': 
+        this.mode = 'Search'; 
+        this.commandText = ''; 
+        this.commandCursorX = 0; 
+        this.lastSearchForward = false;
+        break;
+      case 'n': this.repeatSearch(this.lastSearchForward); break;
+      case 'N': this.repeatSearch(!this.lastSearchForward); break;
       case "ArrowLeft":
       case 'h': this.moveCursor('left'); break;
       case "ArrowDown":
@@ -1043,6 +1063,139 @@ export class VimEngine {
       this.commands[name](args);
     } else {
       console.warn(`Command not found: ${name}`);
+    }
+  }
+
+  private handleSearchMode(key: string, _ctrl: boolean) {
+    if (key === 'Escape') {
+      this.mode = 'Normal';
+      this.commandText = '';
+      this.commandCursorX = 0;
+    } else if (key === 'Enter') {
+      if (this.commandText) {
+        this.lastSearchPattern = this.commandText;
+      }
+      if (this.lastSearchPattern) {
+        this.repeatSearch(this.lastSearchForward);
+      }
+      this.mode = 'Normal';
+      this.commandText = '';
+      this.commandCursorX = 0;
+    } else if (key === 'Backspace') {
+      if (this.commandCursorX > 0) {
+        const before = this.commandText.slice(0, this.commandCursorX - 1);
+        const after = this.commandText.slice(this.commandCursorX);
+        this.commandText = before + after;
+        this.commandCursorX--;
+      } else if (this.commandText.length === 0) {
+        this.mode = 'Normal';
+      }
+    } else if (key === 'Delete') {
+      if (this.commandCursorX < this.commandText.length) {
+        const before = this.commandText.slice(0, this.commandCursorX);
+        const after = this.commandText.slice(this.commandCursorX + 1);
+        this.commandText = before + after;
+      }
+    } else if (key === 'ArrowLeft') {
+      this.commandCursorX = Math.max(0, this.commandCursorX - 1);
+    } else if (key === 'ArrowRight') {
+      this.commandCursorX = Math.min(this.commandText.length, this.commandCursorX + 1);
+    } else if (key === 'Home') {
+      this.commandCursorX = 0;
+    } else if (key === 'End') {
+      this.commandCursorX = this.commandText.length;
+    } else if (key.length === 1 && !_ctrl) {
+      const before = this.commandText.slice(0, this.commandCursorX);
+      const after = this.commandText.slice(this.commandCursorX);
+      this.commandText = before + key + after;
+      this.commandCursorX++;
+    }
+  }
+
+  private repeatSearch(forward: boolean) {
+    if (!this.lastSearchPattern) return;
+
+    try {
+      const regex = new RegExp(this.lastSearchPattern, 'g');
+      let found = false;
+
+      if (forward) {
+        // Search forward
+        for (let y = this.cursor.y; y < this.buffer.length; y++) {
+          const line = this.buffer[y];
+          const startX = y === this.cursor.y ? this.cursor.x + 1 : 0;
+          if (startX >= line.length && y === this.cursor.y) continue;
+          
+          regex.lastIndex = startX;
+          const match = regex.exec(line);
+          if (match) {
+            this.setCursor(match.index, y);
+            found = true;
+            break;
+          }
+        }
+        
+        if (!found) { // Wrap around
+          for (let y = 0; y <= this.cursor.y; y++) {
+            const line = this.buffer[y];
+            regex.lastIndex = 0;
+            const match = regex.exec(line);
+            if (match) {
+              if (y === this.cursor.y && match.index > this.cursor.x) continue; // Already checked
+              this.setCursor(match.index, y);
+              found = true;
+              break;
+            }
+          }
+        }
+      } else {
+        // Search backward
+        for (let y = this.cursor.y; y >= 0; y--) {
+          const line = this.buffer[y];
+          const endLimit = y === this.cursor.y ? this.cursor.x - 1 : line.length;
+          
+          let lastMatchIndex = -1;
+          regex.lastIndex = 0;
+          let match;
+          while ((match = regex.exec(line)) !== null) {
+            if (match.index > endLimit) break;
+            lastMatchIndex = match.index;
+            if (regex.lastIndex === match.index) regex.lastIndex++;
+          }
+          
+          if (lastMatchIndex !== -1) {
+            this.setCursor(lastMatchIndex, y);
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) { // Wrap around from bottom
+          for (let y = this.buffer.length - 1; y >= this.cursor.y; y--) {
+            const line = this.buffer[y];
+            let lastMatchIndex = -1;
+            regex.lastIndex = 0;
+            let match;
+            while ((match = regex.exec(line)) !== null) {
+              if (y === this.cursor.y && match.index >= this.cursor.x) break;
+              lastMatchIndex = match.index;
+              if (regex.lastIndex === match.index) regex.lastIndex++;
+            }
+            
+            if (lastMatchIndex !== -1) {
+              this.setCursor(lastMatchIndex, y);
+              found = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!found) {
+        this.showMessage('Pattern not found: ' + this.lastSearchPattern);
+      }
+    } catch (err) {
+      this.showMessage('Invalid pattern: ' + this.lastSearchPattern);
     }
   }
 }
