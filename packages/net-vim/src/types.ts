@@ -121,6 +121,7 @@ export interface VimAPI {
   registerCommand: (name: string, callback: (args: string[]) => void) => void;
   getBuffer: () => string[];
   setBuffer: (buffer: string[]) => void;
+  requestFocus: () => void,
   getCursor: () => { x: number, y: number };
   setCursor: (x: number, y: number) => void;
   getVisualStart: () => { x: number, y: number } | null;

@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show, createEffect, For } from 'solid-js';
+import { createSignal, onMount, Show, createEffect, For, onCleanup } from 'solid-js';
 import { render } from './solid-universal-tui';
 import { WebGLRenderer } from './WebGLRenderer';
 import { VimEngine } from './vim-engine';
@@ -107,6 +107,8 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
   const [showKeyboard, setShowKeyboard] = createSignal(false);
   const [crtEnabled, setCrtEnabled] = createSignal(false);
   const [contextMenu, setContextMenu] = createSignal<{ x: number, y: number, items: any[] } | null>(null);
+
+  let [ hasFocus, setHasFocus, ] = createSignal(false);
   
   const [visualCursor, setVisualCursor] = createSignal({ x: 0, y: 0 });
 
@@ -194,11 +196,15 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
         }
       };
 
+      const requestFocus = () => {
+        containerRef?.focus();
+      };
+
       if (props.engine) {
         vimInstance = props.engine;
         vimInstance.setUpdateCallback(onUpdate);
       } else {
-        vimInstance = new VimEngine(onUpdate);
+        vimInstance = new VimEngine(onUpdate, requestFocus);
       }
       
       await vimInstance.init();
@@ -216,23 +222,6 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
       vimInstance.setViewportHeight(gridDim().height - 2);
       vimInstance.setViewportWidth(gridDim().width - initialGutterWidth);
 
-      // Visual Viewport tracking for mobile keyboard
-      const updateViewport = () => {
-        updateDimensions();
-      };
-
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', updateViewport);
-        window.visualViewport.addEventListener('scroll', updateViewport);
-        updateViewport();
-      }
-
-      // Update dimensions when virtual keyboard visibility changes
-      createEffect(() => {
-        showKeyboard();
-        updateDimensions();
-      });
-      
       // Initialize Plugins
       
       // 1. Check FS for init.ts
@@ -258,324 +247,341 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
         console.log("Created default init.ts at", CONFIG_PATH);
       });
 
-
       setVimState(vimInstance.getState());
-
-      // Shared key handler
-      const processKey = (key: string, ctrl: boolean = false) => {
-        // Map common keys to Vim-friendly names
-        const keyMap: Record<string, string> = {
-          'ESC': 'Escape',
-          'TAB': 'Tab',
-          '↑': 'ArrowUp',
-          '↓': 'ArrowDown',
-          '←': 'ArrowLeft',
-          '→': 'ArrowRight',
-          'PGUP': 'PageUp',
-          'PGDN': 'PageDown',
-          'HOME': 'Home',
-          'END': 'End',
-          'backspace': 'Backspace',
-          'enter': 'Enter'
-        };
-        const mappedKey = keyMap[key] || key;
-        if (vimInstance) {
-          vimInstance.handleKey(mappedKey, ctrl);
-        }
-      };
-      (window as any).processKey = processKey;
-
-      // Keyboard listeners for Desktop
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (isMobile()) return;
-        
-        const controlKeys = [
-          'Escape', 'Backspace', 'Enter', 'Tab',
-          'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
-          'Home', 'End', 'PageUp', 'PageDown',
-          'Insert', 'Delete',
-          'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
-        ];
-
-        if (controlKeys.includes(e.key) || e.ctrlKey || e.altKey || e.metaKey) {
-          if (e.key === 'F12' || (e.ctrlKey && (e.key === 'r' || e.key === 'R' || e.key === 'i' || e.key === 'I'))) {
-            return;
-          }
-          e.preventDefault();
-          processKey(e.key, e.ctrlKey);
-        }
-      };
-
-      const handleKeyPress = (e: KeyboardEvent) => {
-        if (isMobile()) return;
-        e.preventDefault();
-        processKey(e.key, e.ctrlKey);
-      };
-
-      const handleWheel = (e: WheelEvent) => {
-        if (vimInstance) {
-          if (e.ctrlKey) {
-            // Zooming
-            e.preventDefault();
-            const delta = -e.deltaY;
-            const factor = delta > 0 ? 1.1 : 0.9;
-            
-            const currentSize = charSize();
-            const aspectRatio = currentSize.height / currentSize.width;
-            const newWidth = Math.max(5, Math.min(50, currentSize.width * factor));
-            const newHeight = newWidth * aspectRatio;
-            
-            setCharSize({ width: newWidth, height: newHeight });
-            updateDimensions();
-            return;
-          }
-
-          // Normal mode scrolling with wheel
-          if (e.deltaY > 0) {
-            processKey('e', true); // Scroll down (Ctrl+e)
-          } else if (e.deltaY < 0) {
-            processKey('y', true); // Scroll up (Ctrl+y)
-          }
-          e.preventDefault();
-        }
-      };
-
-      window.addEventListener('keydown', handleKeyDown);
-      window.addEventListener('keypress', handleKeyPress);
-      window.addEventListener('wheel', handleWheel, { passive: false });
-      window.addEventListener('resize', updateDimensions);
-
-      // Handle Android back button to close keyboard
-      const handlePopState = (e: PopStateEvent) => {
-        if (showKeyboard()) {
-          setShowKeyboard(false);
-        }
-      };
-      window.addEventListener('popstate', handlePopState);
-
-      // Pinch-to-zoom event handlers
-      let lastTouchTime = 0;
-      const handleTouchStart = (e: TouchEvent) => {
-        if (e.touches.length === 2) {
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
-          initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
-          initialCharSize = charSize();
-        } else if (e.touches.length === 1) {
-          lastTouchY = e.touches[0].clientY;
-          touchScrollAccumulator = 0;
-        }
-        
-        // Prevent double-tap zoom
-        const now = Date.now();
-        if (now - lastTouchTime < 300) {
-          e.preventDefault();
-        }
-        lastTouchTime = now;
-      };
-
-      const handleTouchMove = (e: TouchEvent) => {
-        if (e.touches.length === 2 && initialPinchDistance > 0) {
-          e.preventDefault(); // Prevent browser zoom
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
-          const currentDistance = Math.sqrt(dx * dx + dy * dy);
-          const scale = currentDistance / initialPinchDistance;
-          
-          // Update char size based on scale
-          const aspectRatio = initialCharSize.height / initialCharSize.width;
-          const newWidth = Math.max(5, Math.min(50, initialCharSize.width * scale));
-          const newHeight = newWidth * aspectRatio;
-          setCharSize({ width: newWidth, height: newHeight });
-          updateDimensions();
-        } else if (e.touches.length === 1 && vimInstance) {
-          const currentY = e.touches[0].clientY;
-          const deltaY = lastTouchY - currentY;
-          lastTouchY = currentY;
-          touchScrollAccumulator += deltaY;
-
-          const rowHeight = charSize().height;
-          if (Math.abs(touchScrollAccumulator) >= rowHeight) {
-            const rowsToScroll = Math.floor(Math.abs(touchScrollAccumulator) / rowHeight);
-            for (let i = 0; i < rowsToScroll; i++) {
-              if (touchScrollAccumulator > 0) {
-                processKey('e', true); // Scroll down (Ctrl+e)
-              } else {
-                processKey('y', true); // Scroll up (Ctrl+y)
-              }
-            }
-            touchScrollAccumulator %= rowHeight;
-          }
-          e.preventDefault();
-        }
-      };
-
-      const handleTouchEnd = (e: TouchEvent) => {
-        if (e.touches.length < 2) {
-          initialPinchDistance = 0;
-        }
-        if (e.touches.length === 0) {
-          touchScrollAccumulator = 0;
-        }
-      };
-
-      window.addEventListener('touchstart', handleTouchStart, { passive: false });
-      window.addEventListener('touchmove', handleTouchMove, { passive: false });
-      window.addEventListener('touchend', handleTouchEnd);
-
-      const stableRoot: any = { 
-        type: 'Box', 
-        props: { x: 0, y: 0, width: gridDim().width, height: gridDim().height, __root: true }, 
-        children: [] 
-      };
-
-      // Start Solid rendering into our custom root object
-      // @ts-ignore
-      render(() => (
-        <VimUI 
-          buffer={() => vimState().buffer} 
-          cursor={() => vimState().cursor} 
-          visualStart={() => vimState().visualStart}
-          topLine={() => vimState().topLine}
-          leftCol={() => vimState().leftCol}
-          mode={() => vimState().mode} 
-          commandText={() => vimState().commandText}
-          commandCursorX={() => vimState().commandCursorX}
-          currentFilePath={() => vimState().currentFilePath}
-          isExplorer={() => vimState().isExplorer}
-          explorerPath={() => vimState().explorerPath}
-          isReadOnly={() => vimState().isReadOnly}
-          plugins={() => vimState().plugins}
-          gutters={() => vimState().gutters}
-          lineRenderers={() => vimState().lineRenderers}
-          completionItems={() => vimState().completionItems}
-          selectedCompletionIndex={() => vimState().selectedCompletionIndex}
-          hoverText={() => vimState().hoverText}
-          hoverPos={() => vimState().hoverPos}
-          hoverScrollOffset={() => vimState().hoverScrollOffset}
-          statusMessage={() => vimState().statusMessage}
-          wrap={() => vimState().wrap}
-          lineEnding={() => vimState().lineEnding}
-          picker={() => vimState().picker}
-          width={() => gridDim().width}
-          height={() => gridDim().height}
-          onCursorChange={(c) => setVisualCursor(c)}
-        />
-      ), stableRoot);
-
-      const runTick = () => {
-        try {
-          // Sync dimensions to root
-          stableRoot.props.width = gridDim().width;
-          stableRoot.props.height = gridDim().height;
-
-          const cleanTree = (node: any): any[] => {
-            if (!node) return [];
-
-            let type = '';
-            let props: any = {};
-            let rawChildren: any[] = [];
-
-            if (node instanceof Element) {
-              const tag = node.localName;
-              type = tag === 'box' ? 'Box' : (tag === 'text' ? 'Text' : tag.charAt(0).toUpperCase() + tag.slice(1));
-              for (let i = 0; i < node.attributes.length; i++) {
-                const attr = node.attributes[i];
-                let value: any = attr.value;
-                let type = PROP_TO_TYPE_MAP.get(attr.name);
-                if (type != undefined) {
-                  let parser = TYPE_PARSER_MAP.get(type);
-                  if (parser != undefined) {
-                    value = parser(value);
-                  }
-                }
-                props[attr.name] = value;
-              }
-              rawChildren = Array.from(node.childNodes);
-            }
-            else if (node instanceof Text) {
-              type = 'Text';
-              props = { content: node.textContent || '' };
-            }
-            else if (node.type && !node.nodeType) {
-              type = node.type;
-              props = { ...node.props };
-              rawChildren = Array.isArray(node.children) ? node.children : [];
-            }
-            else if (typeof node === 'function') {
-              try { return cleanTree(node()); } catch { return []; }
-            }
-            else {
-              return [];
-            }
-
-            ['x', 'y', 'width', 'height'].forEach(p => {
-              if (props[p] !== undefined) {
-                const num = Number(props[p]);
-                props[p] = isNaN(num) ? 0 : Math.max(0, Math.floor(num));
-              }
-            });
-
-            props.border = props.border === true || props.border === 'true';
-            props.clear_bg = props.clearBg !== undefined ? (props.clearBg === true || props.clearBg === 'true') : 
-                             props.clear_bg !== undefined ? (props.clear_bg === true || props.clear_bg === 'true') : true;
-
-            if (props.content !== undefined) props.content = String(props.content ?? '');
-            if (props.title !== undefined) props.title = String(props.title ?? '');
-            if (props.color !== undefined) props.color = String(props.color);
-            if (props.bg_color !== undefined) props.bg_color = String(props.bg_color);
-            if (props.bgColor !== undefined) props.bg_color = String(props.bgColor);
-
-            return [{
-              type,
-              props,
-              children: rawChildren.flatMap(cleanTree)
-            }];
-          };
-
-          const sanitized = cleanTree(stableRoot);
-          const sanitizedRoot = sanitized.length > 0 ? sanitized[0] : null;
-
-          if (sanitizedRoot && rustEngine) {
-            const output = rustEngine.render(sanitizedRoot);
-            if (output) {
-              setRenderData({
-                chars: new Uint8Array(output.chars),
-                fgs: new Uint8Array(output.fgs),
-                bgs: new Uint8Array(output.bgs),
-              });
-            }
-          }
-        } catch (e) {
-          console.error("Error in TUI tick:", e);
-        }
-      };
-
-      // Watch for changes and request a tick
-      createEffect(() => {
-        vimState();
-        gridDim();
-        runTick();
-      });
-
-      return () => {
-        window.removeEventListener('keydown', handleKeyDown);
-        window.removeEventListener('keypress', handleKeyPress);
-        window.removeEventListener('wheel', handleWheel);
-        window.removeEventListener('resize', updateDimensions);
-        window.removeEventListener('popstate', handlePopState);
-        window.removeEventListener('touchstart', handleTouchStart);
-        window.removeEventListener('touchmove', handleTouchMove);
-        window.removeEventListener('touchend', handleTouchEnd);
-        if (window.visualViewport) {
-          window.visualViewport.removeEventListener('resize', updateViewport);
-          window.visualViewport.removeEventListener('scroll', updateViewport);
-        }
-        delete (window as any).processKey;
-      };
     } catch (err) {
       console.error('Failed to initialize TUI engine:', err);
     }
+  });
+
+  const stableRoot: any = {
+    type: 'Box', 
+    props: { x: 0, y: 0, width: gridDim().width, height: gridDim().height, __root: true }, 
+    children: [] 
+  };
+
+  // Start Solid rendering into our custom root object
+  // @ts-ignore
+  onCleanup(render(() => (
+    <VimUI 
+      buffer={() => vimState().buffer} 
+      cursor={() => vimState().cursor} 
+      visualStart={() => vimState().visualStart}
+      topLine={() => vimState().topLine}
+      leftCol={() => vimState().leftCol}
+      mode={() => vimState().mode} 
+      commandText={() => vimState().commandText}
+      commandCursorX={() => vimState().commandCursorX}
+      currentFilePath={() => vimState().currentFilePath}
+      isExplorer={() => vimState().isExplorer}
+      explorerPath={() => vimState().explorerPath}
+      isReadOnly={() => vimState().isReadOnly}
+      plugins={() => vimState().plugins}
+      gutters={() => vimState().gutters}
+      lineRenderers={() => vimState().lineRenderers}
+      completionItems={() => vimState().completionItems}
+      selectedCompletionIndex={() => vimState().selectedCompletionIndex}
+      hoverText={() => vimState().hoverText}
+      hoverPos={() => vimState().hoverPos}
+      hoverScrollOffset={() => vimState().hoverScrollOffset}
+      statusMessage={() => vimState().statusMessage}
+      wrap={() => vimState().wrap}
+      lineEnding={() => vimState().lineEnding}
+      picker={() => vimState().picker}
+      width={() => gridDim().width}
+      height={() => gridDim().height}
+      onCursorChange={(c) => setVisualCursor(c)}
+    />
+  ), stableRoot));
+
+  const runTick = () => {
+    try {
+      // Sync dimensions to root
+      stableRoot.props.width = gridDim().width;
+      stableRoot.props.height = gridDim().height;
+
+      const cleanTree = (node: any): any[] => {
+        if (!node) return [];
+
+        let type = '';
+        let props: any = {};
+        let rawChildren: any[] = [];
+
+        if (node instanceof Element) {
+          const tag = node.localName;
+          type = tag === 'box' ? 'Box' : (tag === 'text' ? 'Text' : tag.charAt(0).toUpperCase() + tag.slice(1));
+          for (let i = 0; i < node.attributes.length; i++) {
+            const attr = node.attributes[i];
+            let value: any = attr.value;
+            let type = PROP_TO_TYPE_MAP.get(attr.name);
+            if (type != undefined) {
+              let parser = TYPE_PARSER_MAP.get(type);
+              if (parser != undefined) {
+                value = parser(value);
+              }
+            }
+            props[attr.name] = value;
+          }
+          rawChildren = Array.from(node.childNodes);
+        }
+        else if (node instanceof Text) {
+          type = 'Text';
+          props = { content: node.textContent || '' };
+        }
+        else if (node.type && !node.nodeType) {
+          type = node.type;
+          props = { ...node.props };
+          rawChildren = Array.isArray(node.children) ? node.children : [];
+        }
+        else if (typeof node === 'function') {
+          try { return cleanTree(node()); } catch { return []; }
+        }
+        else {
+          return [];
+        }
+
+        ['x', 'y', 'width', 'height'].forEach(p => {
+          if (props[p] !== undefined) {
+            const num = Number(props[p]);
+            props[p] = isNaN(num) ? 0 : Math.max(0, Math.floor(num));
+          }
+        });
+
+        props.border = props.border === true || props.border === 'true';
+        props.clear_bg = props.clearBg !== undefined ? (props.clearBg === true || props.clearBg === 'true') : 
+                          props.clear_bg !== undefined ? (props.clear_bg === true || props.clear_bg === 'true') : true;
+
+        if (props.content !== undefined) props.content = String(props.content ?? '');
+        if (props.title !== undefined) props.title = String(props.title ?? '');
+        if (props.color !== undefined) props.color = String(props.color);
+        if (props.bg_color !== undefined) props.bg_color = String(props.bg_color);
+        if (props.bgColor !== undefined) props.bg_color = String(props.bgColor);
+
+        return [{
+          type,
+          props,
+          children: rawChildren.flatMap(cleanTree)
+        }];
+      };
+
+      const sanitized = cleanTree(stableRoot);
+      const sanitizedRoot = sanitized.length > 0 ? sanitized[0] : null;
+
+      if (sanitizedRoot && rustEngine) {
+        const output = rustEngine.render(sanitizedRoot);
+        if (output) {
+          setRenderData({
+            chars: new Uint8Array(output.chars),
+            fgs: new Uint8Array(output.fgs),
+            bgs: new Uint8Array(output.bgs),
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Error in TUI tick:", e);
+    }
+  };
+
+  // Watch for changes and request a tick
+  createEffect(() => {
+    vimState();
+    gridDim();
+    runTick();
+  });
+
+  // Shared key handler
+  const processKey = (key: string, ctrl: boolean = false) => {
+    // Map common keys to Vim-friendly names
+    const keyMap: Record<string, string> = {
+      'ESC': 'Escape',
+      'TAB': 'Tab',
+      '↑': 'ArrowUp',
+      '↓': 'ArrowDown',
+      '←': 'ArrowLeft',
+      '→': 'ArrowRight',
+      'PGUP': 'PageUp',
+      'PGDN': 'PageDown',
+      'HOME': 'Home',
+      'END': 'End',
+      'backspace': 'Backspace',
+      'enter': 'Enter'
+    };
+    const mappedKey = keyMap[key] || key;
+    if (vimInstance) {
+      vimInstance.handleKey(mappedKey, ctrl);
+    }
+  };
+  (window as any).processKey = processKey;
+
+  // Keyboard listeners for Desktop
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (isMobile()) return;
+    
+    const controlKeys = [
+      'Escape', 'Backspace', 'Enter', 'Tab',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'PageUp', 'PageDown',
+      'Insert', 'Delete',
+      'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'
+    ];
+
+    if (controlKeys.includes(e.key) || e.ctrlKey || e.altKey || e.metaKey) {
+      if (e.key === 'F12' || (e.ctrlKey && (e.key === 'r' || e.key === 'R' || e.key === 'i' || e.key === 'I'))) {
+        return;
+      }
+      e.preventDefault();
+      processKey(e.key, e.ctrlKey);
+    }
+  };
+
+  const handleKeyPress = (e: KeyboardEvent) => {
+    if (isMobile()) return;
+    e.preventDefault();
+    processKey(e.key, e.ctrlKey);
+  };
+
+  const handleWheel = (e: WheelEvent) => {
+    if (vimInstance) {
+      if (e.ctrlKey) {
+        // Zooming
+        e.preventDefault();
+        const delta = -e.deltaY;
+        const factor = delta > 0 ? 1.1 : 0.9;
+        
+        const currentSize = charSize();
+        const aspectRatio = currentSize.height / currentSize.width;
+        const newWidth = Math.max(5, Math.min(50, currentSize.width * factor));
+        const newHeight = newWidth * aspectRatio;
+        
+        setCharSize({ width: newWidth, height: newHeight });
+        updateDimensions();
+        return;
+      }
+
+      // Normal mode scrolling with wheel
+      if (e.deltaY > 0) {
+        processKey('e', true); // Scroll down (Ctrl+e)
+      } else if (e.deltaY < 0) {
+        processKey('y', true); // Scroll up (Ctrl+y)
+      }
+      e.preventDefault();
+    }
+  };
+
+
+  // Handle Android back button to close keyboard
+  const handlePopState = (e: PopStateEvent) => {
+    if (showKeyboard()) {
+      setShowKeyboard(false);
+    }
+  };
+
+  // Pinch-to-zoom event handlers
+  let lastTouchTime = 0;
+  const handleTouchStart = (e: TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
+      initialCharSize = charSize();
+    } else if (e.touches.length === 1) {
+      lastTouchY = e.touches[0].clientY;
+      touchScrollAccumulator = 0;
+    }
+    
+    // Prevent double-tap zoom
+    const now = Date.now();
+    if (now - lastTouchTime < 300) {
+      e.preventDefault();
+    }
+    lastTouchTime = now;
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (e.touches.length === 2 && initialPinchDistance > 0) {
+      e.preventDefault(); // Prevent browser zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const currentDistance = Math.sqrt(dx * dx + dy * dy);
+      const scale = currentDistance / initialPinchDistance;
+      
+      // Update char size based on scale
+      const aspectRatio = initialCharSize.height / initialCharSize.width;
+      const newWidth = Math.max(5, Math.min(50, initialCharSize.width * scale));
+      const newHeight = newWidth * aspectRatio;
+      setCharSize({ width: newWidth, height: newHeight });
+      updateDimensions();
+    } else if (e.touches.length === 1 && vimInstance) {
+      const currentY = e.touches[0].clientY;
+      const deltaY = lastTouchY - currentY;
+      lastTouchY = currentY;
+      touchScrollAccumulator += deltaY;
+
+      const rowHeight = charSize().height;
+      if (Math.abs(touchScrollAccumulator) >= rowHeight) {
+        const rowsToScroll = Math.floor(Math.abs(touchScrollAccumulator) / rowHeight);
+        for (let i = 0; i < rowsToScroll; i++) {
+          if (touchScrollAccumulator > 0) {
+            processKey('e', true); // Scroll down (Ctrl+e)
+          } else {
+            processKey('y', true); // Scroll up (Ctrl+y)
+          }
+        }
+        touchScrollAccumulator %= rowHeight;
+      }
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    if (e.touches.length < 2) {
+      initialPinchDistance = 0;
+    }
+    if (e.touches.length === 0) {
+      touchScrollAccumulator = 0;
+    }
+  };
+
+  onMount(() => {
+    // Visual Viewport tracking for mobile keyboard
+    const updateViewport = () => {
+      updateDimensions();
+    };
+
+    // Update dimensions when virtual keyboard visibility changes
+    createEffect(() => {
+      showKeyboard();
+      updateDimensions();
+    });
+
+    if (containerRef == undefined) {
+      return;
+    }
+    
+    containerRef.addEventListener('keydown', handleKeyDown);
+    containerRef.addEventListener('keypress', handleKeyPress);
+    containerRef.addEventListener('wheel', handleWheel, { passive: false });
+    containerRef.addEventListener('resize', updateDimensions);
+    window.addEventListener('popstate', handlePopState);
+    containerRef.addEventListener('touchstart', handleTouchStart, { passive: false });
+    containerRef.addEventListener('touchmove', handleTouchMove, { passive: false });
+    containerRef.addEventListener('touchend', handleTouchEnd);
+    let resizeObserver = new ResizeObserver(() => {
+      updateViewport();
+    });
+    resizeObserver.observe(containerRef);
+    onCleanup(() => {
+      resizeObserver.unobserve(containerRef);
+      resizeObserver.disconnect();
+      containerRef.removeEventListener('keydown', handleKeyDown);
+      containerRef.removeEventListener('keypress', handleKeyPress);
+      containerRef.removeEventListener('wheel', handleWheel);
+      containerRef.removeEventListener('resize', updateDimensions);
+      window.removeEventListener('popstate', handlePopState);
+      containerRef.removeEventListener('touchstart', handleTouchStart);
+      containerRef.removeEventListener('touchmove', handleTouchMove);
+      containerRef.removeEventListener('touchend', handleTouchEnd);
+      delete (window as any).processKey;
+    });
   });
 
   let lastPointerDownTime = 0;
@@ -685,8 +691,11 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
           background: 'black',
           display: 'flex',
           'flex-direction': 'column',
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
+        tabIndex={-1}
+        onFocusIn={() => setHasFocus(true)}
+        onFocusOut={() => setHasFocus(false)}
       >
         <WebGLRenderer
           chars={renderData().chars}
@@ -694,6 +703,7 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
           bgs={renderData().bgs}
           width={gridDim().width}
           height={gridDim().height}
+          showCursor={hasFocus()}
           cursorX={visualCursor().x}
           cursorY={visualCursor().y}
           crtEnabled={crtEnabled()}

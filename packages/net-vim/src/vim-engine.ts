@@ -23,6 +23,7 @@ export class VimEngine {
   private contextMenuItems: ContextMenuItem[] = [];
   private commands: Record<string, (args: string[]) => void> = {};
   private onUpdate: () => void;
+  private requestFocus: () => void;
   private eventListeners: Map<string, Array<(...args: any[]) => void>> = new Map();
   private pluginManager: PluginManager;
   private fs: FileSystem = autoFS;
@@ -56,8 +57,9 @@ export class VimEngine {
   private lastSearchPattern = '';
   private lastSearchForward = true;
 
-  constructor(onUpdate: () => void) {
+  constructor(onUpdate: () => void, requestFocus: () => void) {
     this.onUpdate = onUpdate;
+    this.requestFocus = requestFocus;
     this.registerBuiltinCommands();
     this.pluginManager = new PluginManager(() => this.getAPI());
   }
@@ -84,6 +86,10 @@ export class VimEngine {
   public setUpdateCallback(onUpdate: () => void) {
     this.onUpdate = onUpdate;
     this.onUpdate(); // Trigger immediately
+  }
+
+  public setRequestFocus(requestFocus: () => void) {
+    this.requestFocus = requestFocus;
   }
 
   private registerBuiltinCommands() {
@@ -201,6 +207,7 @@ export class VimEngine {
       registerCommand: (name, callback) => { this.commands[name] = callback; },
       getBuffer: () => [...this.buffer],
       setBuffer: (buffer: string[]) => { this.buffer = [...buffer]; this.trigger('TextChanged'); this.onUpdate(); },
+      requestFocus: () => this.requestFocus(),
       getCursor: () => ({ ...this.cursor }),
       setCursor: (x, y) => { this.setCursor(x, y); },
       getVisualStart: () => this.visualStart ? ({ ...this.visualStart }) : null,

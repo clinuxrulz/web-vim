@@ -401,8 +401,18 @@ export const VimUI: Component<VimUIProps> = (props) => {
 
       <Show when={hoverText()}>
         <tui-box
-          x={Math.min(hoverPos().x, width() - hoverWidth())}
-          y={Math.max(0, hoverPos().y - hoverHeight())}
+          x={
+            Math.min(
+              width() - hoverWidth(),
+              totalGutterWidth() + hoverPos().x - leftCol(),
+            )
+          }
+          y={
+            Math.max(
+              0,
+              hoverPos().y - topLine() - hoverHeight(),
+            )
+          }
           width={hoverWidth()}
           height={hoverHeight()}
           border={true}

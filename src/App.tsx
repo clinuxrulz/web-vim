@@ -1,10 +1,20 @@
 import { VimEditor } from '@net-vim/core';
-import { onMount, createSignal } from 'solid-js';
+import { onMount, createSignal, createEffect, on } from 'solid-js';
 
 export default function App() {
   const [engine, setEngine] = createSignal<any>(null);
   const [viewportHeight, setViewportHeight] = createSignal(window.innerHeight);
   const [viewportTop, setViewportTop] = createSignal(0);
+
+  createEffect(on(
+    engine,
+    (engine) => {
+      if (engine == null) {
+        return;
+      }
+      engine.getAPI().requestFocus();
+    },
+  ));
 
   onMount(() => {
     const updateViewport = () => {
