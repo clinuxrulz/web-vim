@@ -27,7 +27,7 @@ export async function initNetVim(container: HTMLElement, options: InitOptions = 
   // 1. Initialize WASM before rendering the editor
   await initWasm(options.wasmUrl);
 
-  const vim = new VimEngine(() => {});
+  const vim = new VimEngine(() => {}, () => {});
   await vim.init();
 
   const dispose = render(() => <VimEditor engine={vim} />, container);

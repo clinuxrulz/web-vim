@@ -45,7 +45,7 @@ describe('VimEngine', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    engine = new VimEngine(onUpdate);
+    engine = new VimEngine(onUpdate, () => {});
   });
 
   it('should initialize with correct default state', () => {

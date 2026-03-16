@@ -23,7 +23,7 @@ describe('VimEngine Search', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    engine = new VimEngine(onUpdate);
+    engine = new VimEngine(onUpdate, () => {});
     // Set a predictable buffer
     (engine as any).buffer = [
       'first line with apple',
