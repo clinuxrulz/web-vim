@@ -289,7 +289,7 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
         'margin-bottom': '-2px'
       }}>
         <button 
-          onPointerDown={(e) => { e.preventDefault(); props.onCollapse?.(); }}
+          onPointerUp={(e) => { e.preventDefault(); props.onCollapse?.(); }}
           style={{
             background: 'none',
             border: 'none',
