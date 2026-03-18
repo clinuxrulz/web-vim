@@ -789,6 +789,28 @@ export class VimEngine {
       return;
     }
 
+    if (currentSeq === '>') {
+      this.pendingSequence = '>';
+      return;
+    }
+    if (currentSeq === '>>') {
+      this.pendingSequence = '';
+      this.indentLine(this.cursor.y);
+      this.trigger('TextChanged');
+      return;
+    }
+
+    if (currentSeq === '<') {
+      this.pendingSequence = '<';
+      return;
+    }
+    if (currentSeq === '<<') {
+      this.pendingSequence = '';
+      this.deindentLine(this.cursor.y);
+      this.trigger('TextChanged');
+      return;
+    }
+
     // If we're here and have a pending sequence, but no match, reset it
     // unless the current key might start a new sequence.
     if (this.pendingSequence !== '') {
@@ -975,7 +997,70 @@ export class VimEngine {
         this.mode = 'Normal';
         this.visualStart = null;
         break;
+      case '>':
+        this.indentSelection();
+        this.mode = 'Normal';
+        this.visualStart = null;
+        break;
+      case '<':
+        this.deindentSelection();
+        this.mode = 'Normal';
+        this.visualStart = null;
+        break;
     }
+  }
+
+  private indentLine(y: number) {
+    if (y < 0 || y >= this.buffer.length) return;
+    this.buffer[y] = '  ' + this.buffer[y];
+    const firstNonBlank = this.buffer[y].search(/\S/);
+    this.setCursor(firstNonBlank !== -1 ? firstNonBlank : 0, y);
+  }
+
+  private deindentLine(y: number) {
+    if (y < 0 || y >= this.buffer.length) return;
+    const line = this.buffer[y];
+    let spacesToRemove = 0;
+    if (line.startsWith('  ')) spacesToRemove = 2;
+    else if (line.startsWith(' ')) spacesToRemove = 1;
+    
+    if (spacesToRemove > 0) {
+      this.buffer[y] = line.slice(spacesToRemove);
+    }
+    const firstNonBlank = this.buffer[y].search(/\S/);
+    this.setCursor(firstNonBlank !== -1 ? firstNonBlank : 0, y);
+  }
+
+  private indentSelection() {
+    if (!this.visualStart) return;
+    let startY = Math.min(this.visualStart.y, this.cursor.y);
+    let endY = Math.max(this.visualStart.y, this.cursor.y);
+    for (let y = startY; y <= endY; y++) {
+      if (y < 0 || y >= this.buffer.length) continue;
+      this.buffer[y] = '  ' + this.buffer[y];
+    }
+    const firstNonBlank = this.buffer[startY].search(/\S/);
+    this.setCursor(firstNonBlank !== -1 ? firstNonBlank : 0, startY);
+    this.trigger('TextChanged');
+  }
+
+  private deindentSelection() {
+    if (!this.visualStart) return;
+    let startY = Math.min(this.visualStart.y, this.cursor.y);
+    let endY = Math.max(this.visualStart.y, this.cursor.y);
+    for (let y = startY; y <= endY; y++) {
+      if (y < 0 || y >= this.buffer.length) continue;
+      const line = this.buffer[y];
+      let spacesToRemove = 0;
+      if (line.startsWith('  ')) spacesToRemove = 2;
+      else if (line.startsWith(' ')) spacesToRemove = 1;
+      if (spacesToRemove > 0) {
+        this.buffer[y] = line.slice(spacesToRemove);
+      }
+    }
+    const firstNonBlank = this.buffer[startY].search(/\S/);
+    this.setCursor(firstNonBlank !== -1 ? firstNonBlank : 0, startY);
+    this.trigger('TextChanged');
   }
 
   private async yankToClipboard(text: string) {
