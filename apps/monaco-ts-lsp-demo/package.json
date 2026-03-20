@@ -1,0 +1,25 @@
+{
+  "name": "@net-vim/example-monaco-ts-lsp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@net-vim/core": "workspace:*",
+    "@net-vim/virtual-keyboard": "workspace:*",
+    "solid-js": "^1.9.11",
+    "monaco-editor": "^0.52.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.11.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-solid": "^2.11.10",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0"
+  }
+}

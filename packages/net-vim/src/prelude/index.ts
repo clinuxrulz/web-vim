@@ -6,3 +6,4 @@ export { default as hello } from './hello';
 export { default as lineNumbers } from './line-numbers';
 export { default as markdownSyntax } from './markdown-syntax';
 export { default as tsLsp } from './ts-lsp';
+export { default as monacoTsLsp } from './monaco-ts-lsp';

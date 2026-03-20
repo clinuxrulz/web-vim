@@ -24,6 +24,7 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "dev:monaco-ts-lsp": "pnpm --filter @net-vim/example-monaco-ts-lsp dev",
     "setup:wasm": "wasm-pack --version",
     "build:wasm": "wasm-pack build crates/tui-engine --target web --release --out-dir pkg",
     "build": "pnpm run build:wasm && tsc -b && vite build",
