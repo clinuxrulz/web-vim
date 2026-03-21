@@ -22,6 +22,8 @@
     "start": "node ./src/main.js"
   },
   "dependencies": {
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "ssh2": "^1.15.0",
+    "ws": "^8.16.0"
   }
 }

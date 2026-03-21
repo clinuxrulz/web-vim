@@ -55,6 +55,11 @@ export default {
     if (fuzzyFinder) {
       await api.loadPluginFromSource("fuzzy-finder", fuzzyFinder);
     }
+
+    const sshTerminal = await api.configFs.readFile(".config/net-vim/prelude/ssh-terminal.tsx");
+    if (sshTerminal) {
+      await api.loadPluginFromSource("ssh-terminal", sshTerminal);
+    }
   }
 };
 `;

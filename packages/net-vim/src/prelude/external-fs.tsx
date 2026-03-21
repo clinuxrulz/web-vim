@@ -93,6 +93,8 @@ export default {
         };
         
         const bridgeFS = {
+          baseUrl,
+          apiKey: key,
           readFile: async (path: string) => {
             try {
               const response = await fetch(`${baseUrl}/cat?path=${encodeURIComponent(path)}`, { headers });

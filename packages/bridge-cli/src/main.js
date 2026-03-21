@@ -6,6 +6,8 @@ import path from 'path';
 import { URL } from 'url';
 import crypto from 'crypto';
 import qrcode from 'qrcode-terminal';
+import { Client } from 'ssh2';
+import { WebSocketServer } from 'ws';
 
 /**
  * Net-Vim Bridge CLI (Node.js version)
@@ -16,6 +18,8 @@ const args = process.argv.slice(2);
 const port = parseInt(args[0] || '8080', 10);
 const rootDir = path.resolve(args[1] || process.cwd());
 const key = crypto.randomUUID();
+const sshSessions = new Map();
+const wss = new WebSocketServer({ noServer: true });
 
 const server = http.createServer(async (req, res) => {
   // CORS Headers
@@ -109,6 +113,72 @@ const server = http.createServer(async (req, res) => {
         }
       }
     } 
+    else if (parsedUrl.pathname === '/ssh_connect' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', async () => {
+        try {
+          const { host, port, username, password, key: privateKey } = JSON.parse(body);
+          if (!host) throw new Error("Host is required");
+
+          const sessionId = crypto.randomUUID();
+          
+          const conn = new Client();
+          conn.on('ready', () => {
+            sshSessions.set(sessionId, { conn, status: 'connected', buffer: [] });
+            // Cleanup on timeout if not upgraded to WS
+            setTimeout(() => {
+              if (sshSessions.has(sessionId) && !sshSessions.get(sessionId).ws) {
+                conn.end();
+                sshSessions.delete(sessionId);
+              }
+            }, 30000); // 30s timeout
+          }).on('error', (err) => {
+            console.error('SSH Connection Error:', err);
+            sshSessions.set(sessionId, { status: 'error', error: err.message });
+          }).connect({
+            host,
+            port: parseInt(port || '22', 10),
+            username: username || process.env.USER || 'root',
+            privateKey: privateKey,
+            password: password,
+            readyTimeout: 20000,
+          });
+
+          // Wait for connection or error
+          let checks = 0;
+          const checkInterval = setInterval(() => {
+            const session = sshSessions.get(sessionId);
+            if (session) {
+              if (session.status === 'connected') {
+                clearInterval(checkInterval);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ sessionId }));
+              } else if (session.status === 'error') {
+                clearInterval(checkInterval);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: session.error }));
+                sshSessions.delete(sessionId);
+              }
+            }
+            checks++;
+            if (checks > 40) { // 4s timeout for initial handshake
+               clearInterval(checkInterval);
+               res.writeHead(504, { 'Content-Type': 'text/plain' });
+               res.end("Gateway Timeout: SSH Handshake took too long");
+               if(session && session.conn) session.conn.end();
+               else conn.end();
+               sshSessions.delete(sessionId);
+            }
+          }, 100);
+
+        } catch (e) {
+          console.error("SSH Connect Error:", e);
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+    }
     else {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('Not Found');
@@ -117,6 +187,55 @@ const server = http.createServer(async (req, res) => {
     console.error(`Error processing ${req.method} ${req.url}:`, err);
     res.writeHead(500, { 'Content-Type': 'text/plain' });
     res.end(`Internal Server Error: ${err.message}`);
+  }
+});
+
+server.on('upgrade', (request, socket, head) => {
+  const pathname = new URL(request.url, `http://localhost:${port}`).pathname;
+
+  if (pathname === '/ssh_ws') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      const url = new URL(request.url, `http://localhost:${port}`);
+      const sessionId = url.searchParams.get('sessionId');
+      
+      const session = sshSessions.get(sessionId);
+      if (!sessionId || !session || !session.conn) {
+        ws.close(1008, 'Invalid Session ID');
+        return;
+      }
+      
+      session.ws = ws;
+      
+      // Setup stream
+      session.conn.shell((err, stream) => {
+        if (err) {
+           ws.close(1011, 'Failed to open shell');
+           return;
+        }
+        
+        ws.on('message', (message) => {
+          stream.write(message);
+        });
+        
+        stream.on('data', (data) => {
+           ws.send(data.toString());
+        });
+        
+        stream.on('close', () => {
+           ws.close();
+           session.conn.end();
+           sshSessions.delete(sessionId);
+        });
+        
+        ws.on('close', () => {
+           stream.end();
+           session.conn.end();
+           sshSessions.delete(sessionId);
+        });
+      });
+    });
+  } else {
+    socket.destroy();
   }
 });
 
