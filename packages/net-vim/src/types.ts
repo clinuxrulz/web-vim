@@ -13,7 +13,7 @@ export const TYPES_VERSION = '1.0.0';
 
 export type VimMode = 'Normal' | 'Insert' | 'Command' | 'Visual' | 'Search';
 
-export type VimEvent = 'ModeChanged' | 'CursorMoved' | 'TextChanged' | 'BufferLoaded' | 'FileChanged' | 'FileDeleted' | 'KeyDown' | 'FSChanged';
+export type VimEvent = 'ModeChanged' | 'CursorMoved' | 'TextChanged' | 'BufferLoaded' | 'FileChanged' | 'FileDeleted' | 'KeyDown' | 'FSChanged' | 'Resize';
 
 export interface CompletionItem {
   label: string;
@@ -126,6 +126,8 @@ export interface VimAPI {
   setCursor: (x: number, y: number) => void;
   getVisualStart: () => { x: number, y: number } | null;
   getMode: () => VimMode;
+  getViewportWidth: () => number;
+  getViewportHeight: () => number;
   getCurrentFilePath: () => string | null;
   on: (event: VimEvent, callback: (...args: any[]) => void) => void;
   executeCommand: (cmd: string) => void;

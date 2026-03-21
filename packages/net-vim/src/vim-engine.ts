@@ -212,6 +212,8 @@ export class VimEngine {
       setCursor: (x, y) => { this.setCursor(x, y); },
       getVisualStart: () => this.visualStart ? ({ ...this.visualStart }) : null,
       getMode: () => this.mode,
+      getViewportWidth: () => this.viewportWidth,
+      getViewportHeight: () => this.viewportHeight,
       getCurrentFilePath: () => this.currentFilePath,
       on: (event, callback) => {
         if (!this.eventListeners.has(event)) {
@@ -359,12 +361,14 @@ export class VimEngine {
   public setViewportHeight(height: number) {
     this.viewportHeight = height;
     this.scrollCursorIntoView();
+    this.trigger('Resize', { width: this.viewportWidth, height: this.viewportHeight });
     this.onUpdate();
   }
 
   public setViewportWidth(width: number) {
     this.viewportWidth = width;
     this.scrollCursorIntoView();
+    this.trigger('Resize', { width: this.viewportWidth, height: this.viewportHeight });
     this.onUpdate();
   }
 

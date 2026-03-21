@@ -237,6 +237,20 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
     }
   });
 
+  // Sync viewport size with gutters
+  createEffect(() => {
+    const state = vimState();
+    const grid = gridDim();
+    const totalGutterWidth = state.gutters.reduce((acc, g) => acc + g.width, 0);
+    const targetWidth = Math.max(1, grid.width - totalGutterWidth);
+    const targetHeight = Math.max(1, grid.height - 2);
+
+    if (vimInstance && (state.viewportWidth !== targetWidth || state.viewportHeight !== targetHeight)) {
+      vimInstance.setViewportWidth(targetWidth);
+      vimInstance.setViewportHeight(targetHeight);
+    }
+  });
+
   const stableRoot: any = {
     type: 'Box', 
     props: { x: 0, y: 0, width: gridDim().width, height: gridDim().height, __root: true }, 

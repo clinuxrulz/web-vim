@@ -21,6 +21,26 @@ export default {
       return colors[color] || '#ffffff';
     };
 
+    const updateBuffer = () => {
+      if (!activeTerm) return;
+      const buffer = [];
+      const rows = activeTerm.rows;
+      for (let i = 0; i < rows; i++) {
+        const line = activeTerm.buffer.active.getLine(i);
+        buffer.push(line ? line.translateToString() : "");
+      }
+      api.setBuffer(buffer);
+      const { cursorX, cursorY } = activeTerm.buffer.active;
+      api.setCursor(cursorX, cursorY);
+    };
+
+    api.on("Resize", (dims: any) => {
+       if (activeTerm) {
+         activeTerm.resize(dims.width, dims.height);
+         updateBuffer();
+       }
+    });
+
     api.registerLineRenderer({
       name: 'ssh-terminal-renderer',
       priority: 30,
@@ -87,8 +107,8 @@ export default {
         try {
           const { Terminal } = await import("https://esm.sh/@xterm/xterm");
           activeTerm = new Terminal({
-            cols: 80,
-            rows: 24
+            cols: api.getViewportWidth ? api.getViewportWidth() : 80,
+            rows: api.getViewportHeight ? api.getViewportHeight() : 24
           });
           activeTerm.onTitleChange((title: string) => {
             api.log("Terminal Title: " + title);
@@ -118,17 +138,7 @@ export default {
       }
 
       // Update Vim buffer to match xterm.js
-      const updateBuffer = () => {
-        const buffer = [];
-        for (let i = 0; i < activeTerm.rows; i++) {
-          const line = activeTerm.buffer.active.getLine(i);
-          buffer.push(line ? line.translateToString() : "");
-        }
-        api.setBuffer(buffer);
-        // Sync cursor
-        const { cursorX, cursorY } = activeTerm.buffer.active;
-        api.setCursor(cursorX, cursorY);
-      };
+      updateBuffer();
 
       activeTerm.onData((data: string) => {
         // Send data to SSH connection (to be implemented)
