@@ -1,0 +1,24 @@
+{
+  "name": "@net-vim/bridge",
+  "version": "0.1.0",
+  "description": "A cross-platform Node.js bridge to expose a local file system for net-vim.",
+  "type": "module",
+  "bin": {
+    "net-vim-bridge": "./src/main.js"
+  },
+  "keywords": [
+    "net-vim",
+    "bridge",
+    "file-system",
+    "remote-fs",
+    "cli"
+  ],
+  "author": "clinuxrulz",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node ./src/main.js"
+  }
+}
