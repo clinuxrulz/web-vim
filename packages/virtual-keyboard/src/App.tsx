@@ -160,12 +160,16 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
   };
 
   const renderExtraKey = (key: string) => {
-    let content: any = key;
-    let isActive = false;
+    const getContent = () => {
+      if (key === 'TAB') return <TabIcon />;
+      return key;
+    };
 
-    if (key === 'TAB') content = <TabIcon />;
-    if (key === 'CTRL') isActive = isCtrl();
-    if (key === 'ALT') isActive = isAlt();
+    const getIsActive = () => {
+      if (key === 'CTRL') return isCtrl();
+      if (key === 'ALT') return isAlt();
+      return false;
+    };
 
     return (
       <button 
@@ -173,7 +177,7 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
         onPointerUp={() => stopRepeat()}
         onPointerLeave={() => stopRepeat()}
         style={{
-          background: isActive ? '#444' : '#000',
+          background: getIsActive() ? '#444' : '#000',
           color: '#fff',
           border: 'none',
           flex: '1',
@@ -190,76 +194,89 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
           margin: '0'
         }}
       >
-        {content}
+        {getContent()}
       </button>
     );
   };
 
   const renderKey = (key: string) => {
-    let content: any = key;
-    let style: any = {
-      background: '#2c2c2c',
-      color: '#fff',
-      border: 'none',
-      'border-radius': '6px',
-      height: '38px',
-      display: 'flex',
-      'justify-content': 'center',
-      'align-items': 'center',
-      'font-size': '1.1rem',
-      'font-weight': '400',
-      cursor: 'pointer',
-      flex: '1 1 0',
-      'min-width': '0',
-      'box-shadow': '0 1px 2px rgba(0, 0, 0, 0.3)',
-      'user-select': 'none',
-      'box-sizing': 'border-box',
-      padding: '0',
-      margin: '0'
+    const getContent = () => {
+      if (key === 'shift') {
+        return <ShiftIcon active={isShift()} />;
+      } else if (key === 'backspace') {
+        return <BackspaceIcon />;
+      } else if (key === 'English (AU)' || key === 'Space') {
+        return mode() === 'alpha' ? 'English (AU)' : '';
+      } else if (key === 'enter') {
+        return <EnterIcon />;
+      }
+
+      if (mode() === 'alpha' && key.length === 1 && key.match(/[a-z]/)) {
+        return isShift() ? key.toUpperCase() : key;
+      }
+
+      return key;
     };
 
-    if (key === 'shift') {
-      style.flex = '1.4';
-      style.background = isShift() ? '#fff' : '#3b3b3b';
-      style.color = isShift() ? '#000' : '#fff';
-      content = <ShiftIcon active={isShift()} />;
-    } else if (key === 'backspace') {
-      style.flex = '1.4';
-      style.background = '#3b3b3b';
-      content = <BackspaceIcon />;
-    } else if (key === '!#1' || key === 'ABC') {
-      style.flex = '1.4';
-      style.background = '#3b3b3b';
-      style['font-size'] = '1.1rem';
-    } else if (key === 'English (AU)' || key === 'Space') {
-      style.flex = '5';
-      style.background = '#3b3b3b';
-      style['font-size'] = '1rem';
-      content = mode() === 'alpha' ? 'English (AU)' : '';
-    } else if (key === 'enter') {
-      style.flex = '1.4';
-      style.background = '#3b3b3b';
-      content = <EnterIcon />;
-    } else if (key === '1/2' || key === '2/2') {
-      style.flex = '1.4';
-      style.background = '#3b3b3b';
-      style['font-size'] = '0.9rem';
-    } else if (key === ',' || key === '.') {
-      style.background = '#3b3b3b';
-    }
+    const getStyle = () => {
+      let style: any = {
+        background: '#2c2c2c',
+        color: '#fff',
+        border: 'none',
+        'border-radius': '6px',
+        height: '38px',
+        display: 'flex',
+        'justify-content': 'center',
+        'align-items': 'center',
+        'font-size': '1.1rem',
+        'font-weight': '400',
+        cursor: 'pointer',
+        flex: '1 1 0',
+        'min-width': '0',
+        'box-shadow': '0 1px 2px rgba(0, 0, 0, 0.3)',
+        'user-select': 'none',
+        'box-sizing': 'border-box',
+        padding: '0',
+        margin: '0'
+      };
 
-    if (mode() === 'alpha' && key.length === 1 && key.match(/[a-z]/)) {
-      content = isShift() ? key.toUpperCase() : key;
-    }
+      if (key === 'shift') {
+        style.flex = '1.4';
+        style.background = isShift() ? '#fff' : '#3b3b3b';
+        style.color = isShift() ? '#000' : '#fff';
+      } else if (key === 'backspace') {
+        style.flex = '1.4';
+        style.background = '#3b3b3b';
+      } else if (key === '!#1' || key === 'ABC') {
+        style.flex = '1.4';
+        style.background = '#3b3b3b';
+        style['font-size'] = '1.1rem';
+      } else if (key === 'English (AU)' || key === 'Space') {
+        style.flex = '5';
+        style.background = '#3b3b3b';
+        style['font-size'] = '1rem';
+      } else if (key === 'enter') {
+        style.flex = '1.4';
+        style.background = '#3b3b3b';
+      } else if (key === '1/2' || key === '2/2') {
+        style.flex = '1.4';
+        style.background = '#3b3b3b';
+        style['font-size'] = '0.9rem';
+      } else if (key === ',' || key === '.') {
+        style.background = '#3b3b3b';
+      }
+
+      return style;
+    };
 
     return (
       <button 
-        style={style} 
+        style={getStyle()} 
         onPointerDown={(e) => { e.preventDefault(); handleKeyPress(key); startRepeat(key); }}
         onPointerUp={() => stopRepeat()}
         onPointerLeave={() => stopRepeat()}
       >
-        {content}
+        {getContent()}
       </button>
     );
   };
