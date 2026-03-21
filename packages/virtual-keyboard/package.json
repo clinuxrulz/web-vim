@@ -1,6 +1,6 @@
 {
   "name": "@net-vim/virtual-keyboard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Framework-agnostic virtual keyboard component for web applications.",
   "type": "module",
   "repository": {
