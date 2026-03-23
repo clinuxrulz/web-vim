@@ -1,7 +1,6 @@
 import { PluginManager } from './plugin-manager';
 import type { VimMode, VimEvent, VimAPI, GutterOptions, CompletionItem, FileSystem, ContextMenuItem, VimState, LineRendererOptions, PickerItem, PickerOptions } from './types';
 import { autoFS, PRELUDE_BASE } from './opfs-util';
-import { loadScript } from './utils';
 
 export class VimEngine {
   private buffer: string[] = ['Welcome to Net-Vim!', 'Press i to insert text', 'Press Esc to return to Normal mode', 'Type :q to quit'];
@@ -56,6 +55,7 @@ export class VimEngine {
   // Search State
   private lastSearchPattern = '';
   private lastSearchForward = true;
+  private babelModule: any = null;
 
   constructor(onUpdate: () => void, requestFocus: () => void) {
     this.onUpdate = onUpdate;
@@ -67,9 +67,9 @@ export class VimEngine {
   public async init() {
     if (this.isInitialized) return;
     
-    // Load Babel Standalone
+    // Load Babel Standalone via CDN module import
     try {
-      await loadScript('https://unpkg.com/@babel/standalone/babel.min.js');
+      this.babelModule = await import('https://esm.sh/@babel/standalone');
       console.log('[VimEngine] Babel Standalone loaded');
     } catch (err) {
       console.error('[VimEngine] Failed to load Babel Standalone:', err);
@@ -288,7 +288,7 @@ export class VimEngine {
       setFS: (fs) => { this.fs = fs; this.trigger('FSChanged'); this.onUpdate(); },
       getFS: () => this.fs,
       resetFS: () => { this.fs = autoFS; this.trigger('FSChanged'); this.onUpdate(); },
-      babel: (window as any).Babel,
+      babel: this.babelModule,
     };
   }
 
