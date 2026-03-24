@@ -951,9 +951,10 @@ export class VimEngine {
       const line = this.buffer[this.cursor.y];
       const left = line.slice(0, this.cursor.x);
       const right = line.slice(this.cursor.x);
+      const indent = left.match(/^\s*/)?.[0] ?? '';
       this.buffer[this.cursor.y] = left;
-      this.buffer.splice(this.cursor.y + 1, 0, right);
-      this.setCursor(0, this.cursor.y + 1);
+      this.buffer.splice(this.cursor.y + 1, 0, indent + right);
+      this.setCursor(indent.length, this.cursor.y + 1);
     } else if (key.length === 1 && !_ctrl) {
       const line = this.buffer[this.cursor.y] || '';
       this.buffer[this.cursor.y] = line.slice(0, this.cursor.x) + key + line.slice(this.cursor.x);

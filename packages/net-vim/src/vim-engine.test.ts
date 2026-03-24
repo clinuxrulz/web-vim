@@ -92,6 +92,19 @@ describe('VimEngine', () => {
     expect(state.cursor.x).toBe(3);
   });
 
+  it('should preserve indentation on Enter in Insert mode', () => {
+    const api = engine.getAPI();
+    api.setBuffer(['  const value = 1;']);
+    api.setCursor(18, 0);
+
+    engine.handleKey('i');
+    engine.handleKey('Enter');
+
+    const state = engine.getState();
+    expect(state.buffer).toEqual(['  const value = 1;', '  ']);
+    expect(state.cursor).toEqual({ x: 2, y: 1 });
+  });
+
   it('should enter command mode with :', () => {
     engine.handleKey(':');
     expect(engine.getState().mode).toBe('Command');
