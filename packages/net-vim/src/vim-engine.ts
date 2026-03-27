@@ -69,6 +69,7 @@ export class VimEngine {
     
     // Load Babel Standalone via CDN module import
     try {
+      // @ts-ignore
       this.babelModule = await import('https://esm.sh/@babel/standalone');
       console.log('[VimEngine] Babel Standalone loaded');
     } catch (err) {
