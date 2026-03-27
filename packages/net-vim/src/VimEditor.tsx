@@ -431,6 +431,16 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
     }
   };
 
+  // Window-level keydown listener with capture to intercept Ctrl+Space before browser/OS
+  const handleWindowKeyDown = (e: KeyboardEvent) => {
+    if (isMobile()) return;
+    if (e.ctrlKey && (e.key === ' ' || e.keyCode === 32)) {
+      e.preventDefault();
+      e.stopPropagation();
+      processKey(' ', true);
+    }
+  };
+
   const handleKeyPress = (e: KeyboardEvent) => {
     if (isMobile()) return;
     e.preventDefault();
@@ -560,6 +570,7 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
     containerRef.addEventListener('wheel', handleWheel, { passive: false });
     containerRef.addEventListener('resize', updateDimensions);
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('keydown', handleWindowKeyDown, true); // Capture mode for Ctrl+Space
     containerRef.addEventListener('touchstart', handleTouchStart, { passive: false });
     containerRef.addEventListener('touchmove', handleTouchMove, { passive: false });
     containerRef.addEventListener('touchend', handleTouchEnd);
@@ -575,6 +586,7 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
       containerRef.removeEventListener('wheel', handleWheel);
       containerRef.removeEventListener('resize', updateDimensions);
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('keydown', handleWindowKeyDown, true);
       containerRef.removeEventListener('touchstart', handleTouchStart);
       containerRef.removeEventListener('touchmove', handleTouchMove);
       containerRef.removeEventListener('touchend', handleTouchEnd);
