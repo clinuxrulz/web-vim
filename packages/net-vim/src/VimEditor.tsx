@@ -550,21 +550,24 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
   };
 
   onMount(() => {
-    // Visual Viewport tracking for mobile keyboard
-    const updateViewport = () => {
-      updateDimensions();
-    };
-
-    // Update dimensions when virtual keyboard visibility changes
-    createEffect(() => {
-      showKeyboard();
-      updateDimensions();
-    });
-
     if (containerRef == undefined) {
       return;
     }
-    
+
+    // Track visualViewport for Capacitor keyboard handling
+    const updateViewportHeight = () => {
+      if (window.visualViewport) {
+        const viewport = window.visualViewport;
+        // Use CSS custom property to set dynamic height for Capacitor
+        document.documentElement.style.setProperty('--vim-editor-height', `${viewport.height}px`);
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateViewportHeight);
+      window.visualViewport.addEventListener('scroll', updateViewportHeight);
+    }
+
     containerRef.addEventListener('keydown', handleKeyDown);
     containerRef.addEventListener('keypress', handleKeyPress);
     containerRef.addEventListener('wheel', handleWheel, { passive: false });
@@ -575,7 +578,7 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
     containerRef.addEventListener('touchmove', handleTouchMove, { passive: false });
     containerRef.addEventListener('touchend', handleTouchEnd);
     let resizeObserver = new ResizeObserver(() => {
-      updateViewport();
+      updateDimensions();
     });
     resizeObserver.observe(containerRef);
     onCleanup(() => {
@@ -590,6 +593,10 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
       containerRef.removeEventListener('touchstart', handleTouchStart);
       containerRef.removeEventListener('touchmove', handleTouchMove);
       containerRef.removeEventListener('touchend', handleTouchEnd);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateViewportHeight);
+        window.visualViewport.removeEventListener('scroll', updateViewportHeight);
+      }
       delete (window as any).processKey;
     });
   });
@@ -679,7 +686,7 @@ export default function VimEditor(props: { engine?: VimEngine, ref?: (engine: Vi
     <div 
       style={{ 
         width: '100%', 
-        height: '100%', 
+        height: 'var(--vim-editor-height, 100%)',
         position: 'relative',
         background: '#050505', 
         display: 'flex', 

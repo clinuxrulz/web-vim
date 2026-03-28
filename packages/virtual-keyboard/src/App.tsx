@@ -292,7 +292,6 @@ const VirtualKeyboard: Component<VirtualKeyboardProps> = (props) => {
       'flex-direction': 'column',
       gap: '4px',
       'user-select': 'none',
-      'padding-bottom': 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
       'overflow': 'hidden',
       margin: '0',
       position: 'relative'
